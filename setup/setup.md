@@ -232,7 +232,7 @@ Java 17
 
 Install VS Code from Microsoft Store.
 
-Enable:
+Enable below once wsl enabled in vs code other it will installed locally:
 
 * WSL Integration
 * Python Extension

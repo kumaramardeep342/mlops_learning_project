@@ -1,0 +1,42 @@
+# Core
+numpy==2.3.0
+pandas==2.3.0
+scikit-learn==1.7.0
+
+# Visualization
+matplotlib==3.10.3
+seaborn==0.13.2
+
+# Spark
+pyspark==4.0.0
+
+# Workflow
+apache-airflow==3.0.2
+
+# Experiment Tracking
+mlflow==3.1.0
+
+# Versioning
+dvc==3.61.0
+
+# API
+fastapi==0.116.0
+uvicorn==0.35.0
+
+# Monitoring
+prometheus-client==0.22.1
+
+# Model
+xgboost==3.0.2
+
+# Utilities
+python-dotenv==1.1.0
+joblib==1.5.1
+pyyaml==6.0.2
+
+# Testing
+pytest==8.4.1
+
+# Code Quality
+black==25.1.0
+flake8==7.3.0

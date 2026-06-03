@@ -135,7 +135,7 @@ predictive-maintenance-mlops/
 │   ├── model_config.yaml
 │   └── deployment_config.yaml
 │
-├── reports/
+├── project_documents/
 │   ├── architecture/
 │   │   ├── HLD.png
 │   │   ├── LLD.png

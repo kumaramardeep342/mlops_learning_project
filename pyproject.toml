@@ -1,0 +1,71 @@
+[project]
+name = "mlops-learning-project"
+version = "0.1.0"
+description = "End-to-End MLOps Project from develpement to production."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+
+dependencies = [
+    # Core Data Science
+    "numpy==2.3.0",
+    "pandas==2.3.0",
+    "scikit-learn==1.7.0",
+
+    # Visualization
+    "matplotlib==3.10.3",
+    "seaborn==0.13.2",
+
+    # Distributed Processing
+    "pyspark==4.1.2",
+
+    # Workflow Orchestration
+    "apache-airflow==3.0.2",
+
+    # Streaming
+    "confluent-kafka>=2.10.0",
+
+    # Experiment Tracking
+    "mlflow==3.1.0",
+
+    # Data & Model Versioning
+    "dvc==3.61.0",
+
+    # Model Serving
+    "fastapi==0.116.0",
+    "uvicorn==0.35.0",
+
+    # Monitoring
+    "prometheus-client==0.22.1",
+
+    # Machine Learning
+    "xgboost==3.0.2",
+
+    # Utilities
+    "python-dotenv==1.1.0",
+    "joblib==1.5.1",
+    "pyyaml==6.0.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.4.1",
+    "ruff>=0.12.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort
+    "W",  # warnings
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv]
+package = false

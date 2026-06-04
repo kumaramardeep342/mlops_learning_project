@@ -100,7 +100,7 @@ predictive-maintenance-mlops/
 │   ├── model.dvc
 │   └── dvc.yaml
 │
-├── api/
+├── app/
 │   ├── app.py
 │   ├── schemas.py
 │   ├── routes.py

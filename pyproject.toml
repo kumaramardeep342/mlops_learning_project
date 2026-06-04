@@ -10,44 +10,36 @@ dependencies = [
     "numpy==2.3.0",
     "pandas==2.3.0",
     "scikit-learn==1.7.0",
-
     # Visualization
     "matplotlib==3.10.3",
     "seaborn==0.13.2",
-
     # Distributed Processing
     "pyspark==4.1.2",
-
     # Workflow Orchestration
     "apache-airflow==3.0.2",
-
     # Streaming
     "confluent-kafka>=2.10.0",
-
     # Experiment Tracking
     "mlflow==3.1.0",
-
     # Data & Model Versioning
     "dvc==3.61.0",
-
     # Model Serving
     "fastapi==0.116.0",
     "uvicorn==0.35.0",
-
     # Monitoring
     "prometheus-client==0.22.1",
-
     # Machine Learning
     "xgboost==3.0.2",
-
     # Utilities
     "python-dotenv==1.1.0",
     "joblib==1.5.1",
     "pyyaml==6.0.2",
+    "faker>=40.21.0",
 ]
 
 [dependency-groups]
 dev = [
+    "ipykernel>=7.2.0",
     "pytest==8.4.1",
     "ruff>=0.12.0",
 ]

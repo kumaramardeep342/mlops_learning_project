@@ -1,5 +1,5 @@
 # mlops_learning_project
-This project is about to demonstrate the machine learning lifecycle from develpement to production.
+An end-to-end modular MLOps platform for predictive maintenance built using a monolithic repository architecture. The system uses Airflow for orchestration, Spark for large-scale data processing, MLflow for experiment tracking and model registry, DVC for data versioning, FastAPI for model serving, Docker for containerization, and Prometheus/Grafana for monitoring.
 
 # detail project strcuture
 
@@ -160,3 +160,6 @@ predictive-maintenance-mlops/
 ├── requirements.txt
 ├── setup.py
 └── Makefile
+
+# Project Architecture
+<img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">

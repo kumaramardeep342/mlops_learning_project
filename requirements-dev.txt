@@ -25,6 +25,8 @@ apache-airflow==3.0.2
 # Streaming
 # =========================
 confluent-kafka>=2.10.0
+apache-beam>=2.72.0
+apache-beam[interactive]>=2.72.0
 
 # =========================
 # Experiment Tracking

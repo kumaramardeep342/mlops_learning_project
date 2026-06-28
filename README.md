@@ -5,7 +5,7 @@ An end-to-end modular MLOps platform for predictive maintenance built using a mo
 
 predictive-maintenance-mlops/
 │
-├── .github/
+├── .github/            # inprogress
 │   └── workflows/
 │       ├── ci.yml
 │       └── cd.yml
@@ -40,7 +40,7 @@ predictive-maintenance-mlops/
 │   ├── imbalance_handling.py
 │   └── spark_utils.py
 │
-├── notebooks/
+├── notebooks/                 # done
 │   ├── EDA.ipynb
 │   ├── Feature_Analysis.ipynb
 │   └── Model_Experiments.ipynb
@@ -76,12 +76,12 @@ predictive-maintenance-mlops/
 │   │   ├── logging_service.py
 │   │   └── metrics.py
 │   │
-│   └── utils/
+│   └── utils/              # done
 │       ├── logger.py
 │       ├── config.py
 │       └── helper.py
 │
-├── models/
+├── models/                 # done     
 │   ├── random_forest/
 │   │   └── model.pkl
 │   │
@@ -107,7 +107,7 @@ predictive-maintenance-mlops/
 │   ├── middleware.py
 │   └── requirements.txt
 │
-├── monitoring/
+├── monitoring/            # done
 │   ├── prometheus/
 │   │   └── prometheus.yml
 │   │
@@ -117,7 +117,7 @@ predictive-maintenance-mlops/
 │   └── logs/
 │       └── application.log
 │
-├── tests/
+├── tests/                  # done       
 │   ├── test_ingestion.py
 │   ├── test_preprocessing.py
 │   ├── test_training.py
@@ -135,7 +135,7 @@ predictive-maintenance-mlops/
 │   ├── model_config.yaml
 │   └── deployment_config.yaml
 │
-├── project_documents/
+├── project_documents/      # done
 │   ├── architecture/
 │   │   ├── HLD.png
 │   │   ├── LLD.png
@@ -154,7 +154,7 @@ predictive-maintenance-mlops/
 │   ├── deploy.sh
 │   └── monitor.sh
 │
-├── .env
+├── .env                    # done
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
@@ -163,3 +163,11 @@ predictive-maintenance-mlops/
 
 # Project Architecture
 <img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">
+
+
+| Service    | URL                                            |
+| ---------- | ---------------------------------------------- |
+| Airflow    | [http://localhost:8080](http://localhost:8080) |
+| MLflow     | [http://localhost:5000](http://localhost:5000) |
+| Prometheus | [http://localhost:9090](http://localhost:9090) |
+| Grafana    | [http://localhost:3000](http://localhost:3000) |

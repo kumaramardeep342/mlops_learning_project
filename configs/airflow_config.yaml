@@ -1,0 +1,13 @@
+airflow:
+
+  executor: LocalExecutor
+
+  scheduler:
+
+    max_threads: 4
+
+  retries: 3
+
+  retry_delay_minutes: 5
+
+  load_examples: false

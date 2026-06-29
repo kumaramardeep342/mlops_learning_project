@@ -91,7 +91,7 @@ predictive-maintenance-mlops/
 │   └── production/
 │       └── current_model.pkl
 │
-├── mlflow/
+├── mlflow/             # done
 │   ├── artifacts/
 │   └── mlruns/
 │
@@ -124,12 +124,12 @@ predictive-maintenance-mlops/
 │   ├── test_api.py
 │   └── test_monitoring.py
 │
-├── docker/
+├── docker/                # done
 │   ├── Dockerfile
 │   ├── docker-compose.yml
 │   └── .dockerignore
 │
-├── configs/
+├── configs/               # done
 │   ├── airflow_config.yaml
 │   ├── spark_config.yaml
 │   ├── model_config.yaml
@@ -165,9 +165,16 @@ predictive-maintenance-mlops/
 <img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">
 
 
-| Service    | URL                                            |
-| ---------- | ---------------------------------------------- |
-| Airflow    | [http://localhost:8080](http://localhost:8080) |
-| MLflow     | [http://localhost:5000](http://localhost:5000) |
-| Prometheus | [http://localhost:9090](http://localhost:9090) |
-| Grafana    | [http://localhost:3000](http://localhost:3000) |
+# docker run
+```
+cd docker
+docker compose down
+docker compose up -d
+```
+
+| Service    | URL                                            | Login Detail                |
+| ---------- | ---------------------------------------------- | --------------------------- |
+| Airflow    | [http://localhost:8080](http://localhost:8080) | admin : BD3fE85nVqmH3X73    |
+| MLflow     | [http://localhost:5000](http://localhost:5000) |                             |
+| Prometheus | [http://localhost:9090](http://localhost:9090) |                             |
+| Grafana    | [http://localhost:3000](http://localhost:3000) | admin : admin               |

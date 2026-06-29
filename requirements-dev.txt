@@ -19,17 +19,17 @@ pyspark==4.1.2
 # =========================
 # Workflow Orchestration
 # =========================
-apache-airflow==3.0.2
+# apache-airflow==3.0.2
 
 # =========================
 # Streaming
 # =========================
-confluent-kafka>=2.10.0
-
+# confluent-kafka>=2.10.0
+apache-beam>=2.72.0
 # =========================
 # Experiment Tracking
 # =========================
-mlflow==3.1.0
+# mlflow==3.1.0
 
 # =========================
 # Data & Model Versioning
@@ -45,7 +45,7 @@ uvicorn==0.35.0
 # =========================
 # Monitoring
 # =========================
-prometheus-client==0.22.1
+# prometheus-client==0.22.1
 
 # =========================
 # Machine Learning

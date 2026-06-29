@@ -1,11 +1,11 @@
 # mlops_learning_project
-This project is about to demonstrate the machine learning lifecycle from develpement to production.
+An end-to-end modular MLOps platform for predictive maintenance built using a monolithic repository architecture. The system uses Airflow for orchestration, Spark for large-scale data processing, MLflow for experiment tracking and model registry, DVC for data versioning, FastAPI for model serving, Docker for containerization, and Prometheus/Grafana for monitoring.
 
 # detail project strcuture
 
 predictive-maintenance-mlops/
 │
-├── .github/
+├── .github/            # inprogress
 │   └── workflows/
 │       ├── ci.yml
 │       └── cd.yml
@@ -40,7 +40,7 @@ predictive-maintenance-mlops/
 │   ├── imbalance_handling.py
 │   └── spark_utils.py
 │
-├── notebooks/
+├── notebooks/                 # done
 │   ├── EDA.ipynb
 │   ├── Feature_Analysis.ipynb
 │   └── Model_Experiments.ipynb
@@ -76,12 +76,12 @@ predictive-maintenance-mlops/
 │   │   ├── logging_service.py
 │   │   └── metrics.py
 │   │
-│   └── utils/
+│   └── utils/              # done
 │       ├── logger.py
 │       ├── config.py
 │       └── helper.py
 │
-├── models/
+├── models/                 # done     
 │   ├── random_forest/
 │   │   └── model.pkl
 │   │
@@ -91,7 +91,7 @@ predictive-maintenance-mlops/
 │   └── production/
 │       └── current_model.pkl
 │
-├── mlflow/
+├── mlflow/             # done
 │   ├── artifacts/
 │   └── mlruns/
 │
@@ -107,7 +107,7 @@ predictive-maintenance-mlops/
 │   ├── middleware.py
 │   └── requirements.txt
 │
-├── monitoring/
+├── monitoring/            # done
 │   ├── prometheus/
 │   │   └── prometheus.yml
 │   │
@@ -117,25 +117,25 @@ predictive-maintenance-mlops/
 │   └── logs/
 │       └── application.log
 │
-├── tests/
+├── tests/                  # done       
 │   ├── test_ingestion.py
 │   ├── test_preprocessing.py
 │   ├── test_training.py
 │   ├── test_api.py
 │   └── test_monitoring.py
 │
-├── docker/
+├── docker/                # done
 │   ├── Dockerfile
 │   ├── docker-compose.yml
 │   └── .dockerignore
 │
-├── configs/
+├── configs/               # done
 │   ├── airflow_config.yaml
 │   ├── spark_config.yaml
 │   ├── model_config.yaml
 │   └── deployment_config.yaml
 │
-├── project_documents/
+├── project_documents/      # done
 │   ├── architecture/
 │   │   ├── HLD.png
 │   │   ├── LLD.png
@@ -154,9 +154,27 @@ predictive-maintenance-mlops/
 │   ├── deploy.sh
 │   └── monitor.sh
 │
-├── .env
+├── .env                    # done
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
 ├── setup.py
 └── Makefile
+
+# Project Architecture
+<img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">
+
+
+# docker run
+```
+cd docker
+docker compose down
+docker compose up -d
+```
+
+| Service    | URL                                            | Login Detail                |
+| ---------- | ---------------------------------------------- | --------------------------- |
+| Airflow    | [http://localhost:8080](http://localhost:8080) | admin : BD3fE85nVqmH3X73    |
+| MLflow     | [http://localhost:5000](http://localhost:5000) |                             |
+| Prometheus | [http://localhost:9090](http://localhost:9090) |                             |
+| Grafana    | [http://localhost:3000](http://localhost:3000) | admin : admin               |

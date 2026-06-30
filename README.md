@@ -170,6 +170,7 @@ predictive-maintenance-mlops/
 cd docker
 docker compose down
 docker compose up -d
+docker logs airflow # check the logs of docker
 ```
 
 | Service    | URL                                            | Login Detail                |

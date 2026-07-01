@@ -70,6 +70,7 @@ git config --global --list
 ---
 
 # 3. Install Python 3.14 and UV
+- 3.14 will be globally, so once create virtual env install 3.12 inside virtual environment
 
 Verify Python:
 

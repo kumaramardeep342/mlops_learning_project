@@ -70,6 +70,7 @@ git config --global --list
 ---
 
 # 3. Install Python 3.14 and UV
+- 3.14 will be globally, so once create virtual env install 3.12 inside virtual environment
 
 Verify Python:
 
@@ -150,7 +151,7 @@ javac -version
 
 ---
 
-# 6. Install Apache Spark 4.1.2
+# 6. Install Apache Spark 4.1.2(don't install) go for 3.5.6
 
 Create applications directory:
 
@@ -158,25 +159,35 @@ Create applications directory:
 mkdir -p ~/apps
 cd ~/apps
 ```
+Remove if Spark 4.1.2 (installed) otherwise skip
+```bash
+rm -rf spark
+rm -f spark-4.1.2-bin-hadoop3.tgz
+```
 
 Download Spark:
 
 ```bash
-wget https://downloads.apache.org/spark/spark-4.1.2/spark-4.1.2-bin-hadoop3.tgz
+wget https://downloads.apache.org/spark/spark-4.1.2/spark-4.1.2-bin-hadoop3.tgz (skip)
+
+wget https://archive.apache.org/dist/spark/spark-3.5.6/spark-3.5.6-bin-hadoop3.tgz
 ```
 
 Extract:
 
 ```bash
-tar -xzf spark-4.1.2-bin-hadoop3.tgz
+tar -xzf spark-4.1.2-bin-hadoop3.tgz(skip)
+
+tar -xzf spark-3.5.6-bin-hadoop3.tgz
 ```
 
 Rename:
 
 ```bash
-mv spark-4.1.2-bin-hadoop3 spark
-```
+mv spark-4.1.2-bin-hadoop3 spark (skip)
 
+mv spark-3.5.6-bin-hadoop3 spark
+```
 ---
 
 ### 6.1 Configure Environment Variables
@@ -187,7 +198,7 @@ Edit bash profile:
 nano ~/.bashrc
 ```
 
-Add:
+Add:(if already present then skip)
 
 ```bash
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
@@ -222,7 +233,8 @@ spark-submit --version
 Expected:
 
 ```text
-Spark 4.1.2
+Spark 4.1.2(should not come)
+Spark 3.5.6
 Java 17
 ```
 

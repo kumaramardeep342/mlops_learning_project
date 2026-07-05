@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  spark-master:
+    image: apache/spark:latest
+    container_name: spark-master
+    ports:
+      - "8080:8080" # Spark Master web UI
+      - "7077:7077" # Spark Master port
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+
+  spark-worker:
+    image: apache/spark:latest
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_WORKER_MEMORY=1g
+      - SPARK_WORKER_CORES=1
+    volumes:
+      - ./workspace:/workspace
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+
+  spark-driver:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark-driver
+    container_name: spark-driver
+    depends_on:
+      - spark-master
+    ports:
+      - "8888:8888" # Jupyter lab
+      - "4040:4040" # Spark application UI
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+    volumes:
+      - ./workspace:/workspace
+    command: jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --no-browser --IdentityProvider.token='' --IdentityProvider.hashed_password=''

@@ -37,6 +37,7 @@ dependencies = [
     "pyyaml==6.0.2",
     "faker>=40.21.0",
     "pathspec==0.12.1",
+    "pyopenssl>=25.1.0",
 ]
 
 [dependency-groups]

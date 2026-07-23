@@ -46,7 +46,39 @@ No. Git LFS is not retroactive. It only affects files that are added or recommit
 ```
 
 ```bash
-# 1. dvc setup
+# 1. Initialize DVC
+dvc init
+# 2. Commit
+git add .dvc .dvcignore
+git commit -m "Initialize DVC"
+# 3. Install Google Drive support
+uv add "dvc[gdrive]"
+# 4. Create Google Drive folder
+MLOPS_DVC_STORAGE -- this one you can ignore,as it will be shared with everyone
+# 5. Copy folder ID
+https://drive.google.com/drive/folders/1LeyCC1gNR8MTqhleVfWMobOWWvVgOqod
+# 6. Configure DVC Remote
+dvc remote add -d gdrive gdrive://1LeyCC1gNR8MTqhleVfWMobOWWvVgOqod
+# 7. Verify
+dvc remote list
+# 8. Commit remote configuration
+git add .dvc/config
+git commit -m "Configure DVC remote"
+# 9. Authenticate
+dvc push
+# 10. Add the dataset to DVC (Track Dataset)
+ex: dvc add data/raw/maintenance.csv
+# 11. commit
+ex:
+git add data/raw/maintenance.csv.dvc .gitignore
+git commit -m "Track raw dataset"
+# 12. push the code
+git push
+# 13. push the data
+dvc push
+
+# 1. dvc and github
+
                 GitHub
                   │
         ---------------------
@@ -61,6 +93,7 @@ No. Git LFS is not retroactive. It only affects files that are added or recommit
                  ├── MinIO
                  ├── NAS
                  └── Local Server
+
 # 2.now i have pushed csv files on git lfs when i configured the dvc will it effect ? or it will store both the places ?
 
 Git LFS and DVC are completely independent systems. If you use both on the same file without changing anything, you can end up storing the file in both places, which is usually not what you want.
@@ -69,13 +102,5 @@ Git LFS and DVC are completely independent systems. If you use both on the same 
 git lfs untrack "*.csv"
 
 # 4. Commit the updated .gitattributes
-# 5. Add the dataset to DVC
-ex: dvc add data/raw/maintenance.csv
-# 6. commit
-ex:
-git add data/raw/maintenance.csv.dvc .gitignore
-git commit -m "Move dataset tracking from Git LFS to DVC"
-# 7. Configure a DVC remote and push
-dvc remote add storage <remote>
-dvc push
+
 ```

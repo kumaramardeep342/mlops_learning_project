@@ -23,7 +23,7 @@ dependencies = [
     # Experiment Tracking
     "mlflow>=3.14.0",
     # Data & Model Versioning
-    "dvc==3.61.0",
+    "dvc[gdrive]>=3.63.0",
     # Model Serving
     "fastapi==0.116.0",
     "uvicorn==0.35.0",
@@ -36,6 +36,7 @@ dependencies = [
     "joblib==1.5.1",
     "pyyaml==6.0.2",
     "faker>=40.21.0",
+    "pathspec==0.12.1",
 ]
 
 [dependency-groups]

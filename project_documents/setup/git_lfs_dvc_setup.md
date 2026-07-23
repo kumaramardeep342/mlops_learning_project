@@ -54,11 +54,13 @@ git commit -m "Initialize DVC"
 # 3. Install Google Drive support
 uv add "dvc[gdrive]"
 # 4. Create Google Drive folder
-MLOPS_DVC_STORAGE -- this one you can ignore,as it will be shared with everyone
+MLOPS_DVC_STORAGE -- this one you can ignore,as it will be shared with everyone , for onedrive need to create in your system
 # 5. Copy folder ID
 https://drive.google.com/drive/folders/1LeyCC1gNR8MTqhleVfWMobOWWvVgOqod
 # 6. Configure DVC Remote
-dvc remote add -d gdrive gdrive://1LeyCC1gNR8MTqhleVfWMobOWWvVgOqod
+dvc remote add -d gdrive gdrive://1LeyCC1gNR8MTqhleVfWMobOWWvVgOqod # this for google drive , doesn't work due to google block the local url,
+dvc remote add -d onedrive_local /mnt/c/Users/<your_username>/OneDrive/MLOPS_DVC_STORAGE # this works fine 
+ex : dvc remote add -d onedrive /mnt/c/Users/admin/OneDrive/MLOPS_DVC_STORAGE
 # 7. Verify
 dvc remote list
 # 8. Commit remote configuration

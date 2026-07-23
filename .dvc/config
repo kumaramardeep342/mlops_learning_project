@@ -1,4 +1,4 @@
 [core]
-    remote = gdrive
-['remote "gdrive"']
-    url = gdrive://1LeyCC1gNR8MTqhleVfWMobOWWvVgOqod
+    remote = onedrive
+['remote "onedrive"']
+    url = /mnt/c/Users/admin/OneDrive/MLOPS_DVC_STORAGE

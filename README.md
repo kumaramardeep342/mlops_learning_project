@@ -164,7 +164,6 @@ predictive-maintenance-mlops/
 # Project Architecture
 <img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">
 
-
 # docker run
 ```
 cd docker

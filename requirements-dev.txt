@@ -36,7 +36,8 @@ mlflow==3.14.0
 # =========================
 # Data & Model Versioning
 # =========================
-dvc==3.61.0
+# vc==3.61.0
+dvc[gdrive]>=3.63.0
 
 # =========================
 # Model Serving
@@ -61,6 +62,7 @@ lightgbm=4.7.0
 python-dotenv==1.1.0
 joblib==1.5.1
 pyyaml==6.0.2
+pathspec==0.12.1
 
 # =========================
 # Testing

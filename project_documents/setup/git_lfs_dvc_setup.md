@@ -102,5 +102,13 @@ Git LFS and DVC are completely independent systems. If you use both on the same 
 git lfs untrack "*.csv"
 
 # 4. Commit the updated .gitattributes
+```
 
+```bash
+# normal flow goes
+dvc add data/raw/maintenance.csv
+git add .
+git commit -m "Track dataset"
+git push          # Push code to GitHub
+dvc push          # Upload data to Google Drive
 ```

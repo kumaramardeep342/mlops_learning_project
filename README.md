@@ -1,5 +1,8 @@
 # mlops_learning_project
-An end-to-end modular MLOps platform for predictive maintenance built using a monolithic repository architecture. The system uses Airflow for orchestration, Spark for large-scale data processing, MLflow for experiment tracking and model registry, DVC for data versioning, FastAPI for model serving, Docker for containerization, and Prometheus/Grafana for monitoring.
+
+This repository implements an end-to-end, modular MLOps platform for predictive maintenance, organized as a single monolithic codebase encompassing the complete machine learning lifecycle. The system leverages Apache Airflow for pipeline orchestration, Apache Spark for large-scale data processing, MLflow for experiment tracking and model registry management, DVC for dataset and model versioning, FastAPI for model serving, Docker for containerization, and Prometheus/Grafana for monitoring and observability.
+
+Despite its monolithic structure, the platform is designed with clear modular boundaries between components — data ingestion, preprocessing, feature engineering, model training, deployment, and monitoring — enabling each stage to be developed, tested, and executed independently while remaining part of a unified, version-controlled repository.
 
 # detail project strcuture
 

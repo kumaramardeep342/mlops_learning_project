@@ -165,11 +165,13 @@ predictive-maintenance-mlops/
 <img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">
 
 # docker run
-```
+```bash
 cd docker
 docker compose down
 docker compose up -d
 docker logs airflow # check the logs of docker
+minikube start --driver=docker  # start minikube with docker
+minikube status # check status
 ```
 
 | Service    | URL                                            | Login Detail                |

@@ -1,11 +1,27 @@
-# mlops_learning_project
+# Predictive Maintenance
+
+``` bash
+# repo owner details
+GitHub ID : sjagga001sj , NusrathGit , dhananjAI-coder , kavyasreek9 ,  kumaramardeep342
+name :      Sagar Jagga , Nusrath Fatima , Dhananjai Singh , Kavyasree, Amardeep Kumar
+roll_no :   DA25M526    , DA25M523       , DA25M510       , DA25M506 ,  DA25M502
+
+```
+
+## 🎯 Overview
 
 This repository implements an end-to-end, modular MLOps platform for predictive maintenance, organized as a single monolithic codebase encompassing the complete machine learning lifecycle. The system leverages Apache Airflow for pipeline orchestration, Apache Spark for large-scale data processing, MLflow for experiment tracking and model registry management, DVC for dataset and model versioning, FastAPI for model serving, Docker for containerization, and Prometheus/Grafana for monitoring and observability.
 
 Despite its monolithic structure, the platform is designed with clear modular boundaries between components — data ingestion, preprocessing, feature engineering, model training, deployment, and monitoring — enabling each stage to be developed, tested, and executed independently while remaining part of a unified, version-controlled repository.
 
-# detail project strcuture
+## 🎓 Learning Objectives
 
+## 📋 Prerequisites
+
+
+## 🛠️ Repository Architecture
+
+```plaintext
 predictive-maintenance-mlops/
 │
 ├── .github/            # inprogress
@@ -163,11 +179,23 @@ predictive-maintenance-mlops/
 ├── requirements.txt
 ├── setup.py
 └── Makefile
+```
 
-# Project Architecture
+## Architecture
 <img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">
 
-# docker run
+##  🚀 Quick Start
+```bash
+# Set up Python virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Install training requirements
+pip install -r requirements-dev.txt
+# Install serving requirements
+pip install -r requirements-dev.txt
+```
+
+## Docker Run
 ```bash
 cd docker
 docker compose down
@@ -177,9 +205,12 @@ minikube start --driver=docker  # start minikube with docker
 minikube status # check status
 ```
 
+## Exposed Endpoints
+```pliantext
 | Service    | URL                                            | Login Detail                |
 | ---------- | ---------------------------------------------- | --------------------------- |
-| Airflow    | [http://localhost:8080](http://localhost:8080) | admin : BD3fE85nVqmH3X73    |
+| Airflow    | [http://localhost:8080](http://localhost:8080) | admin :                     |
 | MLflow     | [http://localhost:5000](http://localhost:5000) |                             |
 | Prometheus | [http://localhost:9090](http://localhost:9090) |                             |
 | Grafana    | [http://localhost:3000](http://localhost:3000) | admin : admin               |
+```

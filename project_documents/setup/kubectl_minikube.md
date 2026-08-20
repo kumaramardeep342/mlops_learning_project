@@ -33,7 +33,7 @@ minikube status # check status
 # Apply Manifests & Deploy to Minikube
 minikube start --driver=docker
 # Apply all deployment files
-kubectl apply -f k8s/
+kubectl apply -f k8s/services/
 # Check status of your Pods and Services
 kubectl get pods
 kubectl get svc

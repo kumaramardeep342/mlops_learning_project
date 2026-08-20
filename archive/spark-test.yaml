@@ -1,0 +1,48 @@
+name: Spark Cluster Integration Test
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'spark-cluster.yml'
+      - 'spark_config.yaml'
+      - '.github/workflows/spark-test.yaml'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'spark-cluster.yml'
+      - 'spark_config.yaml'
+      - '.github/workflows/spark-test.yaml'
+
+jobs:
+  test-spark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Start Spark Cluster via Docker Compose
+        run: |
+          docker compose -f spark-cluster.yml up -d spark-master spark-worker
+
+      - name: Check Running Containers
+        run: |
+          docker ps
+
+      - name: Wait for Spark Master Web UI
+        run: |
+          echo "Waiting for Spark Master to respond..."
+          timeout 60s bash -c 'until curl -s http://localhost:8080; do sleep 2; done'
+
+      - name: Submit Spark Smoke Test Job
+        run: |
+          docker exec spark-master /opt/spark/bin/spark-submit \
+            --master spark://spark-master:7077 \
+            --class org.apache.spark.examples.SparkPi \
+            /opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar 10
+
+      - name: Tear Down Spark Cluster
+        if: always()
+        run: |
+          docker compose -f spark-cluster.yml down -v

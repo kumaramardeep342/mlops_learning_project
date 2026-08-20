@@ -1,9 +1,9 @@
 name: Predictive Maintenance CI Pipeline
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ main , develop ]
   push:
-    branches: [ main ]
+    branches: [ main , develop ]
 
 jobs:
   health-check:

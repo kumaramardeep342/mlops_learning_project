@@ -15,16 +15,32 @@ This repository implements an end-to-end, modular MLOps platform for predictive 
 Despite its monolithic structure, the platform is designed with clear modular boundaries between components — data ingestion, preprocessing, feature engineering, model training, deployment, and monitoring — enabling each stage to be developed, tested, and executed independently while remaining part of a unified, version-controlled repository.
 
 ## 🎓 Learning Objectives
+1. Structure an ML project repository with proper Git practices (branching, PRs, .gitignore secrets management)
+2. End to End Data Engineering Pipeline
+3. Write multi-stage Dockerfiles optimized for ML workloads
+4. Deploy PyTorch training jobs on Kubernetes using Jobs and persistent storage
+5. Serve a trained model via a Kubernetes Deployment with health checks
+6. Use ConfigMaps and Secrets for environment-specific configuration
 
 ## 📋 Prerequisites
 
+| Requirement | Specified Version / Component |
+| :--- | :--- |
+| OS / Environment | Windows 11 + WSL2 (Ubuntu) |
+| Java| OpenJDK 17 (`JAVA_HOME`) |
+| Python Tooling | Python 3.12 (via `uv venv`) |
+| Big Data Engine | Apache Spark 3.5.6 (`SPARK_HOME`) |
+| Container Engine | Docker Desktop with WSL2 integration |
+| Kubernetes CLI | `kubectl` + `minikube` (Docker driver) |
+| Data Tracking | Git LFS + DVC |
+| Services Stack | Airflow, MLflow, Kafka, Prometheus, Grafana |
 
-## 🛠️ Repository Architecture
+## 📁 Repository Architecture
 
 ```plaintext
 predictive-maintenance-mlops/
 │
-├── .github/            # inprogress
+├── .github/            
 │   └── workflows/
 │       ├── ci.yml
 │       └── cd.yml
@@ -59,7 +75,7 @@ predictive-maintenance-mlops/
 │   ├── imbalance_handling.py
 │   └── spark_utils.py
 │
-├── notebooks/                 # done
+├── notebooks/                 
 │   ├── EDA.ipynb
 │   ├── Feature_Analysis.ipynb
 │   └── Model_Experiments.ipynb
@@ -99,6 +115,7 @@ predictive-maintenance-mlops/
 │       ├── logger.py
 │       ├── config.py
 │       └── helper.py
+│       └── setup_project_strcuture.py
 │
 ├── models/                 # done     
 │   ├── random_forest/
@@ -110,7 +127,7 @@ predictive-maintenance-mlops/
 │   └── production/
 │       └── current_model.pkl
 │
-├── mlflow/             # done
+├── mlflow/             
 │   ├── artifacts/
 │   └── mlruns/
 │
@@ -126,7 +143,7 @@ predictive-maintenance-mlops/
 │   ├── middleware.py
 │   └── requirements.txt
 │
-├── monitoring/            # done
+├── monitoring/            
 │   ├── prometheus/
 │   │   └── prometheus.yml
 │   │
@@ -136,25 +153,25 @@ predictive-maintenance-mlops/
 │   └── logs/
 │       └── application.log
 │
-├── tests/                  # done       
+├── tests/                        
 │   ├── test_ingestion.py
 │   ├── test_preprocessing.py
 │   ├── test_training.py
 │   ├── test_api.py
 │   └── test_monitoring.py
 │
-├── docker/                # done
+├── docker/                
 │   ├── Dockerfile
 │   ├── docker-compose.yml
 │   └── .dockerignore
 │
-├── configs/               # done
+├── configs/               
 │   ├── airflow_config.yaml
 │   ├── spark_config.yaml
 │   ├── model_config.yaml
 │   └── deployment_config.yaml
 │
-├── project_documents/      # done
+├── project_documents/      
 │   ├── architecture/
 │   │   ├── HLD.png
 │   │   ├── LLD.png
@@ -173,7 +190,7 @@ predictive-maintenance-mlops/
 │   ├── deploy.sh
 │   └── monitor.sh
 │
-├── .env                    # done
+├── .env                    
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
@@ -214,3 +231,44 @@ minikube status # check status
 | Prometheus | [http://localhost:9090](http://localhost:9090) |                             |
 | Grafana    | [http://localhost:3000](http://localhost:3000) | admin : admin               |
 ```
+
+## 🤝 Contributing Guidelines
+We welcome contributions! To keep our codebase clean and maintain a smooth workflow, please strictly follow these step-by-step contribution guidelines.
+
+---
+
+### 1. Issue & Branch Creation
+1. **Find or Create an Issue:** All work must be linked to an issue. If no issue exists, create one describing the bug or feature.
+2. **Assign Labels & Project:** Ensure the issue has appropriate **Labels** (e.g., `bug`, `feature`, `documentation`) and is added to the repository **GitHub Project**.
+3. **Branch from `develop`:** Create a new branch directly from the `develop` branch using the issue number and a descriptive name:
+```bash
+   git checkout develop
+   git pull origin develop
+   git checkout -b <issue-number>-<short-description>
+   # Example: git checkout -b 42-add-feature-engineering
+```
+
+### 2. Development & Code Formatting
+```bash
+# 1. Write clean, modular, and documented code following the project structure.
+
+# 2. Format Code with Ruff: Before committing, you must format all Python code using ruff to ensure consistency:
+
+# Install ruff
+uv pip install ruff
+# Format code
+ruff format .
+# Check for lint issues
+ruff check .
+
+# 3. Synchronize Before Raising a PR Always pull the latest changes from develop into your feature branch before opening a Pull Request to prevent merge conflicts:
+git checkout <your-branch-name>
+git pull origin develop
+git push origin <your-branch-name>
+```
+
+###  4. Creating a Pull Request (PR)
+```bash
+# Fill all the required details propely , title , description , reviewer , label , project.
+```
+

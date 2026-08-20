@@ -51,12 +51,3 @@ def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     return logger
 
 
-
-# Ek common logging function — har file jab kuch print/log karna chahe (progress, error, warning), 
-# to isi function ko call karegi, taaki:
-# Log terminal pe bhi dikhe aur ek file (application.log) 
-# me bhi save ho jaye — isliye baad me bhi dekh sako kya hua tha
-# Kyun chahiye
-# print() sirf terminal pe dikhta hai, terminal band karte hi gayab
-#test karne ka command 
-# python -c "from src.utils.logger import get_logger; log = get_logger('test'); log.info('Logger working!'); log.warning('This is a warning')"

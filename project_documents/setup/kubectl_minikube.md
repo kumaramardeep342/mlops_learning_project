@@ -27,3 +27,24 @@ minikube status # check status
 # apiserver: Running
 # kubeconfig: Configured
 ```
+
+```bash
+# work with minikube
+# Apply Manifests & Deploy to Minikube
+minikube start --driver=docker
+# Apply all deployment files
+kubectl apply -f k8s/
+# Check status of your Pods and Services
+kubectl get pods
+kubectl get svc
+# Access UI services on your host machine
+# run the following commands in separate terminal windows to get the local URLs:
+# Mlflow UI
+minikube service mlflow-service --url
+# Airflow UI
+minikube service airflow-service --url
+# Prometheus UI
+minikube service prometheus-service --url
+# Grafana UI
+minikube service grafana-service --url
+```

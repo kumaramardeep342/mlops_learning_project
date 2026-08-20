@@ -1,1 +1,1 @@
-# We will be writting the FAST API code here. This is the main entry point for our API application. We will define our routes, request handlers, and any necessary middleware here.
+# this file is about api routes for the application

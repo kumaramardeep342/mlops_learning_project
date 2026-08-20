@@ -18,8 +18,15 @@ spec:
         - name: airflow
           image: apache/airflow:3.0.2
           command: ["airflow", "standalone"]
-          env:
-            - name: AIRFLOW__CORE__LOAD_EXAMPLES
-              value: "false"
+          envFrom:
+            - configMapRef:
+                name: airflow-config
           ports:
             - containerPort: 8080
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1024Mi"
+              cpu: "500m"

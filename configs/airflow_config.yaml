@@ -1,13 +1,8 @@
-airflow:
-
-  executor: LocalExecutor
-
-  scheduler:
-
-    max_threads: 4
-
-  retries: 3
-
-  retry_delay_minutes: 5
-
-  load_examples: false
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-config
+data:
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__EXECUTOR: "LocalExecutor"
+  AIRFLOW__SCHEDULER__MAX_THREADS: "2"

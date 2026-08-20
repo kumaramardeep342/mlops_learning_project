@@ -17,6 +17,16 @@ spec:
       containers:
         - name: mlflow
           image: ghcr.io/mlflow/mlflow:v3.1.0
-          args: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000"]
+          args: ["mlflow", "server", "--host", "$(MLFLOW_HOST)", "--port", "$(MLFLOW_PORT)"]
+          envFrom:
+            - configMapRef:
+                name: mlflow-config
           ports:
             - containerPort: 5000
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "300m"

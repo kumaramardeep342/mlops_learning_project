@@ -1,0 +1,21 @@
+2026-08-20 15:57:02 | INFO     | __main__ | Training script started
+2026-08-20 16:05:10 | INFO     | __main__ | Training script started
+2026-08-20 16:32:43 | ERROR    | __main__ | There is an issue with Data Loading :Error tokenizing data. C error: Expected 3650 fields in line 5, saw 6368
+
+2026-08-20 16:34:31 | ERROR    | __main__ | There is an issue with Data Loading :Error tokenizing data. C error: Expected 3650 fields in line 5, saw 6368
+
+2026-08-20 16:37:16 | ERROR    | __main__ | There is an issue with Data Loading :Error tokenizing data. C error: Expected 3650 fields in line 5, saw 6368
+
+2026-08-20 16:39:42 | ERROR    | __main__ | There is an issue with Data Loading :Error tokenizing data. C error: Expected 3650 fields in line 5, saw 6368
+
+2026-08-20 16:42:01 | ERROR    | __main__ | There is an issue with Data Loading :Error tokenizing data. C error: Expected 3650 fields in line 5, saw 6368
+
+2026-08-20 16:42:27 | INFO     | __main__ | dataset loaded successfully !!.
+2026-08-20 16:48:03 | INFO     | __main__ | Training script started
+2026-08-20 16:48:44 | INFO     | __main__ | Training script started
+2026-08-20 16:49:46 | INFO     | __main__ | Training script started
+2026-08-20 16:50:53 | INFO     | src.preprocessing.dataset | dataset loaded successfully !!.
+2026-08-20 16:54:49 | INFO     | src.preprocessing.dataset | dataset loaded successfully !!.
+2026-08-20 16:54:49 | INFO     | __main__ | Dataset shape: (10000, 14)
+2026-08-20 19:18:12 | INFO     | __main__ | Training pipeline started
+2026-08-20 19:18:12 | INFO     | __main__ | Starting MLP training

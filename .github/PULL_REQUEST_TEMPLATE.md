@@ -6,6 +6,8 @@
 - [ ] MLflow
 - [ ] Kafka / Zookeeper
 - [ ] Spark
+- [ ] Model Developement
+- [ ] MLflow (Tracking / Registry)
 - [ ] Prometheus / Grafana
 - [ ] Kubernetes Manifests (`k8s/services`)
 

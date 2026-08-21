@@ -12,8 +12,8 @@ from pyspark.ml.classification import RandomForestClassifier
 # MLP
 # ============================================================
 
-class MLP(nn.Module):
 
+class MLP(nn.Module):
     def __init__(self, input_size):
 
         super().__init__()
@@ -21,11 +21,9 @@ class MLP(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_size, 32),
             nn.ReLU(),
-
             nn.Linear(32, 16),
             nn.ReLU(),
-
-            nn.Linear(16, 2)
+            nn.Linear(16, 2),
         )
 
     def forward(self, x):
@@ -36,17 +34,13 @@ class MLP(nn.Module):
 # LSTM
 # ============================================================
 
-class LSTMModel(nn.Module):
 
+class LSTMModel(nn.Module):
     def __init__(self, input_size):
 
         super().__init__()
 
-        self.lstm = nn.LSTM(
-            input_size=input_size,
-            hidden_size=64,
-            batch_first=True
-        )
+        self.lstm = nn.LSTM(input_size=input_size, hidden_size=64, batch_first=True)
 
         self.fc = nn.Linear(64, 2)
 
@@ -61,15 +55,13 @@ class LSTMModel(nn.Module):
 # Random Forest
 # ============================================================
 
-def get_random_forest(
-    num_trees=50,
-    max_depth=5
-):
+
+def get_random_forest(num_trees=50, max_depth=5):
 
     return RandomForestClassifier(
         featuresCol="features",
         labelCol="label",
         numTrees=num_trees,
         maxDepth=max_depth,
-        seed=42
+        seed=42,
     )

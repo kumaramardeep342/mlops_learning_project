@@ -1,0 +1,47 @@
+name: Continuous Deployment Predictive Maintenance
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:latest
+
+      - name: Setup Minikube (For CI/Testing)
+        uses: medyagh/setup-minikube@master
+        with:
+          minikube-version: 'latest'
+
+      - name: Deploy to Kubernetes
+        run: |
+          # 1. Create namespace if missing
+          kubectl create namespace ml-training --dry-run=client -o yaml | kubectl apply -f -
+
+          # 2. Apply manifests
+          kubectl apply -f k8s/base/ -n ml-training
+          kubectl apply -f k8s/services/ -n ml-training
+
+          # 3. Update container image in the ml-training namespace
+          kubectl set image deployment/mlflow mlflow=ghcr.io/${{ github.repository }}:latest -n ml-training
+
+          # 4. Verify rollout
+          kubectl rollout status deployment/mlflow -n ml-training --timeout=180s

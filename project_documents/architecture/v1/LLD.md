@@ -1,70 +1,70 @@
 # low level design
-                            GitHub
-                               |
-                               v
-                   +-----------------------+
-                   | GitHub Actions CI/CD  |
-                   +-----------+-----------+
-                               |
-                               v
-+-----------------------------------------------------------+
-|                       Apache Airflow                      |
-+-----------------------------------------------------------+
-        |                  |                     |
-        v                  v                     v
+                              GitHub
+                                    |
+                                    v
+                        +-----------------------+
+                        | GitHub Actions CI/CD  |
+                        +-----------+-----------+
+                                    |
+                                    v
+      +-----------------------------------------------------------+
+      |                       Apache Airflow                      |
+      +-----------------------------------------------------------+
+            |                  |                     |
+            v                  v                     v
 
- Data Validation   Spark ETL Pipeline   Feature Engineering
+      Data Validation   Spark ETL Pipeline   Feature Engineering
 
-        |                  |                     |
-        +------------------+---------------------+
-                           |
-                           v
+            |                  |                     |
+            +------------------+---------------------+
+                              |
+                              v
 
-                Processed Dataset
+                  Processed Dataset
 
-                           |
-                           v
+                              |
+                              v
 
-                   Model Training
+                        Model Training
 
-                           |
-          +----------------+---------------+
-          |                                |
-          v                                v
+                              |
+            +----------------+---------------+
+            |                                |
+            v                                v
 
-    Random Forest                    XGBoost
+      Random Forest                    XGBoost
 
-          |                                |
-          +----------------+---------------+
-                           |
-                           v
+            |                                |
+            +----------------+---------------+
+                              |
+                              v
 
-                     MLflow Server
+                        MLflow Server
 
-                           |
-                           v
+                              |
+                              v
 
-                     DVC Repository
+                        DVC Repository
 
-                           |
-                           v
+                              |
+                              v
 
-                     Model Registry
+                        Model Registry
 
-                           |
-                           v
+                              |
+                              v
 
-                     FastAPI Server
+                        FastAPI Server
 
-                           |
-                    Docker Container
+                              |
+                        Docker Container
 
-                           |
-                           v
+                              |
+                              v
 
-                    Prometheus Server
+                        Prometheus Server
 
-                           |
-                           v
+                              |
+                              v
 
-                      Monitoring
+                        Monitoring

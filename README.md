@@ -1,4 +1,4 @@
-# Predictive Maintenance
+# Team 54 : Predictive Maintenance of Industrial Milling Machine
 
 ``` bash
 # repo owner details
@@ -10,19 +10,20 @@ roll_no :   DA25M526    , DA25M523       , DA25M510       , DA25M506 ,  DA25M502
 
 ## 🎯 Overview
 
-This repository implements an end-to-end, modular MLOps platform for predictive maintenance, organized as a single monolithic codebase encompassing the complete machine learning lifecycle. The system leverages Apache Airflow for pipeline orchestration, Apache Spark for large-scale data processing, MLflow for experiment tracking and model registry management, DVC for dataset and model versioning, FastAPI for model serving, Docker for containerization, and Prometheus/Grafana for monitoring and observability.
+This repository implements an end-to-end, modular MLOps platform for predictive maintenance, organized as unified codebase encompassing the complete machine learning lifecycle. The system leverages Apache Airflow for pipeline orchestration, Apache Spark for large-scale data processing, MLflow for experiment tracking and model registry management, DVC for dataset and model versioning, FastAPI for model serving, Docker for containerization, and Prometheus/Grafana for monitoring and observability.
 
-Despite its monolithic structure, the platform is designed with clear modular boundaries between components — data ingestion, preprocessing, feature engineering, model training, deployment, and monitoring — enabling each stage to be developed, tested, and executed independently while remaining part of a unified, version-controlled repository.
+The codebase structure, the platform is designed with clear modular boundaries between components: data ingestion, preprocessing, feature engineering, model training, deployment, and monitoring — enabling each stage to be developed, tested, and executed independently while remaining part of a unified, version-controlled repository.
 
-## 🎓 Learning Objectives
-1. Structure an ML project repository with proper Git practices (branching, PRs, .gitignore secrets management)
+### 🎓 Learning Objectives
+1. Structure an ML project repository with proper Git practices (branching, gitlfs , PRs, .gitignore , github actions , issues ,  secrets and project management)
 2. End to End Data Engineering Pipeline
 3. Write multi-stage Dockerfiles optimized for ML workloads
 4. Deploy PyTorch training jobs on Kubernetes using Jobs and persistent storage
 5. Serve a trained model via a Kubernetes Deployment with health checks
 6. Use ConfigMaps and Secrets for environment-specific configuration
+7. Metrics analyzed via prometheus and grafana.
 
-## 📋 Prerequisites
+### 📋 Prerequisites
 
 | Requirement | Specified Version / Component |
 | :--- | :--- |
@@ -35,8 +36,170 @@ Despite its monolithic structure, the platform is designed with clear modular bo
 | Data Tracking | Git LFS + DVC |
 | Services Stack | Airflow, MLflow, Kafka, Prometheus, Grafana |
 
-## 📁 Repository Architecture
+## System architecture
+                            GitHub
+                                |
+                                v
+                    +-----------------------+
+                    | GitHub Actions CI/CD  |
+                    +-----------+-----------+
+                                |
+                                v
+    +-----------------------------------------------------------+
+    |                       Apache Airflow                      |
+    +-----------------------------------------------------------+
+            |                  |                     |
+            v                  v                     v
 
+    Data Validation   Spark ETL Pipeline   Feature Engineering
+
+            |                  |                     |
+            +------------------+---------------------+
+                            |
+                            v
+
+                    Processed Dataset
+
+                            |
+                            v
+
+                    Model Training
+
+                            |
+            +----------------+---------------+
+            |                                |
+            v                                v
+
+        Random Forest                    XGBoost
+
+            |                                |
+            +----------------+---------------+
+                            |
+                            v
+
+                        MLflow Server
+
+                            |
+                            v
+
+                        DVC Repository
+
+                            |
+                            v
+
+                        Model Registry
+
+                            |
+                            v
+
+                        FastAPI Server
+
+                            |
+                        Docker Container
+
+                            |
+                            v
+
+                        Prometheus Server
+
+                            |
+                            v
+
+                        Monitoring
+
+## System architecture diagram
+
+<img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">
+
+## Setup and installation instructions
+###  🚀 Quick Start
+```bash
+# Set up Python virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Install training requirements
+pip install -r requirements-dev.txt
+# Install serving requirements
+```
+## Steps to run pipelines and services
+
+### Kubernetes minikube services
+```bash
+# work with minikube
+
+# Apply Manifests & Deploy to Minikube
+minikube start --driver=docker  # start minikube with docker
+minikube status # check status
+
+# Apply all deployment files
+kubectl apply -f k8s/base/
+
+# full pipleline , not recomended due to high memory usage and system capacity below is recommened
+kubectl apply -f k8s/services/
+
+# during training phase
+# Turn OFF monitoring
+kubectl scale deployment prometheus grafana --replicas=0
+# Turn ON pipeline & tracking components
+kubectl scale deployment airflow mlflow kafka zookeeper --replicas=1
+
+# suring inference phase
+# Turn OFF training & orchestration
+kubectl scale deployment airflow mlflow kafka zookeeper --replicas=0
+# Turn ON monitoring & serving
+kubectl scale deployment prometheus grafana --replicas=1
+
+# run training pipeline
+kubectl apply -f k8s/pipeline/
+
+# Check status of your Pods and Services
+kubectl get pods
+kubectl get svc
+
+# Access UI services on your host machine
+# run the following commands in separate terminal windows to get the local URLs:
+# Mlflow UI
+minikube service mlflow-service --url
+# Airflow UI
+minikube service airflow-service --url
+# Prometheus UI
+minikube service prometheus-service --url
+# Grafana UI
+minikube service grafana-service --url
+```
+### Exposed Endpoints
+| Service | Local URL | Port-Forward Command | Default Credentials |
+| :--- | :--- | :--- | :--- |
+| **MLflow** | `http://localhost:5000` | `kubectl port-forward svc/mlflow-service 5000:5000` | None |
+| **Airflow** | `http://localhost:8080` | `kubectl port-forward svc/airflow-service 8080:8080` | None *(Standalone mode auto-logs in)* |
+| **Grafana** | `http://localhost:3000` | `kubectl port-forward svc/grafana-service 3000:3000` | **User:** `admin` / **Password:** `admin` |
+| **Prometheus** | `http://localhost:9090` | `kubectl port-forward svc/prometheus-service 9090:9090` | None |
+| **Kafka** | `localhost:9092` | `kubectl port-forward svc/kafka-service 9092:9092` | Internal Broker Port |
+
+## API usage instructions
+    TODO
+
+## Docker execution commands
+### Docker Run
+```bash
+cd docker
+docker compose down
+docker compose up -d
+docker logs airflow # check the logs of docker
+```
+
+### Exposed Endpoints
+```pliantext
+| Service    | URL                                            | Login Detail                |
+| ---------- | ---------------------------------------------- | --------------------------- |
+| Airflow    | [http://localhost:8080](http://localhost:8080) | admin :                     |
+| MLflow     | [http://localhost:5000](http://localhost:5000) |                             |
+| Prometheus | [http://localhost:9090](http://localhost:9090) |                             |
+| Grafana    | [http://localhost:3000](http://localhost:3000) | admin : admin               |
+```
+
+## Folder structure and dependencies
+### 📁 Repository Architecture
 ```plaintext
 predictive-maintenance-mlops/
 │
@@ -200,8 +363,8 @@ predictive-maintenance-mlops/
 └── Makefile
 ```
 
+### Kubernetes Strcuture 
 ```plaintext
-kubernetes strcuture 
 configs/
 ├── airflow_config.yaml
 ├── spark_config.yaml
@@ -232,47 +395,15 @@ k8s/
     ├── prometheus-deployment.yaml
     └── prometheus-service.yaml
 ```
-
-## Architecture
-<img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">
-
-##  🚀 Quick Start
-```bash
-# Set up Python virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-# Install training requirements
-pip install -r requirements-dev.txt
-# Install serving requirements
-pip install -r requirements-dev.txt
-```
-
-## Docker Run
-```bash
-cd docker
-docker compose down
-docker compose up -d
-docker logs airflow # check the logs of docker
-minikube start --driver=docker  # start minikube with docker
-minikube status # check status
-```
-
-## Exposed Endpoints
-```pliantext
-| Service    | URL                                            | Login Detail                |
-| ---------- | ---------------------------------------------- | --------------------------- |
-| Airflow    | [http://localhost:8080](http://localhost:8080) | admin :                     |
-| MLflow     | [http://localhost:5000](http://localhost:5000) |                             |
-| Prometheus | [http://localhost:9090](http://localhost:9090) |                             |
-| Grafana    | [http://localhost:3000](http://localhost:3000) | admin : admin               |
-```
+### Dependencies
+<img src="project_documents/setup/dependency strcuture.png" width="800">
 
 ## 🤝 Contributing Guidelines
 We welcome contributions! To keep our codebase clean and maintain a smooth workflow, please strictly follow these step-by-step contribution guidelines.
 
 ---
 
-### 1. Issue & Branch Creation
+### Issue & Branch Creation
 1. **Find or Create an Issue:** All work must be linked to an issue. If no issue exists, create one describing the bug or feature.
 2. **Assign Labels & Project:** Ensure the issue has appropriate **Labels** (e.g., `bug`, `feature`, `documentation`) and is added to the repository **GitHub Project**.
 3. **Branch from `develop`:** Create a new branch directly from the `develop` branch using the issue number and a descriptive name:
@@ -283,7 +414,7 @@ We welcome contributions! To keep our codebase clean and maintain a smooth workf
    # Example: git checkout -b 42-add-feature-engineering
 ```
 
-### 2. Development & Code Formatting
+### Development & Code Formatting
 ```bash
 # 1. Write clean, modular, and documented code following the project structure.
 
@@ -302,8 +433,7 @@ git pull origin develop
 git push origin <your-branch-name>
 ```
 
-###  4. Creating a Pull Request (PR)
+###  Creating a Pull Request (PR)
 ```bash
 # Fill all the required details propely , title , description , reviewer , label , project.
 ```
-

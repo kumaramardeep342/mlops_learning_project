@@ -1,0 +1,40 @@
+[
+    {
+        "model": "MLP",
+        "f1_score": 0.3438395415472779,
+        "training_time": 9.15894079208374
+    },
+    {
+        "model": "LSTM",
+        "f1_score": 0.36085626911314983,
+        "training_time": 2.75889253616333
+    },
+    {
+        "model": "RandomForest",
+        "num_trees": 50,
+        "max_depth": 5,
+        "f1_score": 0.3614457831325301,
+        "training_time": 28.072245836257935
+    },
+    {
+        "model": "RandomForest",
+        "num_trees": 50,
+        "max_depth": 10,
+        "f1_score": 0.5333333333333333,
+        "training_time": 31.097723960876465
+    },
+    {
+        "model": "RandomForest",
+        "num_trees": 100,
+        "max_depth": 5,
+        "f1_score": 0.2716049382716049,
+        "training_time": 29.23418688774109
+    },
+    {
+        "model": "RandomForest",
+        "num_trees": 100,
+        "max_depth": 10,
+        "f1_score": 0.5765765765765766,
+        "training_time": 33.67986726760864
+    }
+]

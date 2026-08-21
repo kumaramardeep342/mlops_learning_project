@@ -1,6 +1,6 @@
 {
     "model": "RandomForest",
-    "f1_score": 0.5765765765765766,
+    "accuracy": 0.9765,
     "model_path": "models/best_model",
     "num_trees": 100,
     "max_depth": 10

@@ -165,6 +165,8 @@ predictive-maintenance-mlops/
 │   ├── docker-compose.yml
 │   └── .dockerignore
 │
+├── k8s/ 
+│
 ├── configs/               
 │   ├── airflow_config.yaml
 │   ├── spark_config.yaml
@@ -196,6 +198,39 @@ predictive-maintenance-mlops/
 ├── requirements.txt
 ├── setup.py
 └── Makefile
+```
+
+```plaintext
+kubernetes strcuture 
+configs/
+├── airflow_config.yaml
+├── spark_config.yaml
+└── training_config.yaml
+
+k8s/
+├── base/
+│   ├── configmap.yaml
+│   ├── grafana-configmap.yaml
+│   ├── kafka-configmap.yaml
+│   ├── mlflow-configmap.yaml
+│   ├── namespace.yaml
+│   └── prometheus-configmap.yaml
+├── pipeline/
+│   ├── hpa.yaml
+│   ├── serving-deployment.yaml
+│   ├── serving-service.yaml
+│   └── training-job.yaml
+└── services/
+    ├── airflow-deployment.yaml
+    ├── airflow-service.yaml
+    ├── grafana-deployment.yaml
+    ├── grafana-service.yaml
+    ├── kafka-deployment.yaml
+    ├── kafka-service.yaml
+    ├── mlflow-deployment.yaml
+    ├── mlflow-service.yaml
+    ├── prometheus-deployment.yaml
+    └── prometheus-service.yaml
 ```
 
 ## Architecture

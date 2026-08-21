@@ -1,0 +1,43 @@
+name: PySpark Integration Test
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'configs/spark_config.yaml'
+      - 'src/**'
+      - '.github/workflows/spark-test.yaml'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'configs/spark_config.yaml'
+      - 'src/**'
+      - '.github/workflows/spark-test.yaml'
+
+jobs:
+  test-pyspark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyspark pytest pyyaml
+
+      - name: Run PySpark Sanity Check
+        run: |
+          python -c "from pyspark.sql import SparkSession; spark = SparkSession.builder.master('local[*]').appName('CI_Test').getOrCreate(); print('Spark Version:', spark.version)"

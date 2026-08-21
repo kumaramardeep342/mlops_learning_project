@@ -64,3 +64,6 @@ grafana
 docker compose down
 docker compose down -v # this remove volume as well , deletes conatiner data don't run danger.
 ```
+```bash
+# useful commands
+```

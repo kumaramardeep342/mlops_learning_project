@@ -1,42 +1,38 @@
 """
-src/training/train.py
+Training pipeline
 
-Pipeline:
-
-1. Load AI4I dataset
-2. Train/validation split
-3. Standardize features for PyTorch models
-4. Train MLP using torch.compile
-5. Train LSTM using torch.compile
-6. Train multiple Random Forest configurations using Ray
-7. Compare F1 scores
-8. Select best model
-9. Save only best model
-10. Save model metrics
+MLP  -> PyTorch + torch.compile
+LSTM -> PyTorch + torch.compile + sequences
+RF   -> Spark ML + Ray parallel experiments
+MLflow -> experiment tracking
 """
 
 import json
 import shutil
 import time
-from pathlib import Path
 
 import mlflow
+import numpy as np
 import ray
 import torch
 import torch.nn as nn
 import yaml
 
-from sklearn.metrics import f1_score
+from pathlib import Path
+
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-
-from torch.utils.data import DataLoader, TensorDataset
 
 from pyspark.ml.feature import VectorAssembler
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
-from src.training.model import MLP, LSTMModel, get_random_forest
+from src.training.model import (
+    MLP,
+    LSTMModel,
+    get_random_forest
+)
 
 from src.preprocessing.dataset import get_dataset
 
@@ -47,379 +43,679 @@ logger = get_logger(__name__)
 
 
 # ============================================================
-# Configuration
+# CONFIG
 # ============================================================
-
 
 def load_config():
 
-    with open("configs/training_config.yaml", "r") as file:
-        return yaml.safe_load(file)
+    with open(
+        "configs/training_config.yaml"
+    ) as f:
+
+        return yaml.safe_load(f)
 
 
 # ============================================================
-# Prepare PyTorch data
+# SEQUENCE CREATION
 # ============================================================
 
+def create_sequences(
+    X,
+    y,
+    seq_len
+):
 
-def create_loader(X, y, config):
+    Xs = []
+    ys = []
 
-    X = torch.tensor(X, dtype=torch.float32)
+    for i in range(
+        len(X) - seq_len
+    ):
 
-    y = torch.tensor(y, dtype=torch.long)
+        Xs.append(
+            X[i:i + seq_len]
+        )
 
-    dataset = TensorDataset(X, y)
+        ys.append(
+            y[i + seq_len]
+        )
 
-    return DataLoader(
-        dataset, batch_size=config["training"]["batch_size"], shuffle=True
+    return (
+        np.array(Xs),
+        np.array(ys)
     )
 
 
 # ============================================================
-# Train PyTorch model
+# TORCH COMPILE
 # ============================================================
 
+def compile_model(
+    model,
+    config
+):
 
-def train_torch_model(model, train_loader, config, is_lstm=False):
+    if not config["torch_compile"]["enabled"]:
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        return model
+
+    try:
+
+        logger.info(
+            "Applying torch.compile()"
+        )
+
+        model = torch.compile(
+            model,
+            backend="inductor"
+        )
+
+        logger.info(
+            "torch.compile enabled"
+        )
+
+    except Exception as e:
+
+        logger.warning(
+            f"torch.compile failed: {e}"
+        )
+
+    return model
+
+
+# ============================================================
+# TRAIN PYTORCH MODEL
+# ============================================================
+
+def train_torch_model(
+    model,
+    X_train,
+    y_train,
+    config,
+    is_lstm=False
+):
+
+    device = torch.device(
+        "cuda"
+        if torch.cuda.is_available()
+        else "cpu"
+    )
 
     model = model.to(device)
 
-    # --------------------------------------------------------
-    # torch.compile
-    # --------------------------------------------------------
-
-    if config["torch_compile"]["enabled"]:
-        try:
-            logger.info("Applying torch.compile()")
-
-            model = torch.compile(model, backend="inductor")
-
-            logger.info("torch.compile enabled")
-
-        except Exception as e:
-            logger.warning(f"torch.compile failed: {e}")
-
-            logger.warning("Continuing with normal PyTorch")
-
-    # --------------------------------------------------------
-    # Class weights
-    # --------------------------------------------------------
-
-    targets = train_loader.dataset.tensors[1]
-
-    class_counts = torch.bincount(targets, minlength=2).float()
-
-    class_weights = len(targets) / (2 * class_counts)
-
-    class_weights = class_weights.to(device)
-
-    logger.info(f"Class counts: {class_counts.tolist()}")
-
-    logger.info(f"Class weights: {class_weights.tolist()}")
-
-    # --------------------------------------------------------
-    # Loss
-    # --------------------------------------------------------
-
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
-
-    # --------------------------------------------------------
-    # Optimizer
-    # --------------------------------------------------------
-
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=config["training"]["learning_rate"]
+    model = compile_model(
+        model,
+        config
     )
 
-    # --------------------------------------------------------
-    # Training
-    # --------------------------------------------------------
+    X_train = torch.tensor(
+        X_train,
+        dtype=torch.float32
+    )
 
-    model.train()
+    y_train = torch.tensor(
+        y_train,
+        dtype=torch.long
+    )
+
+    criterion = nn.CrossEntropyLoss()
+
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=config["training"]["learning_rate"]
+    )
 
     epochs = config["training"]["epochs"]
 
     for epoch in range(epochs):
-        total_loss = 0.0
 
-        for inputs, targets in train_loader:
-            inputs = inputs.to(device)
-            targets = targets.to(device)
+        model.train()
 
-            # LSTM expects:
-            # [batch, sequence, features]
+        optimizer.zero_grad()
 
-            if is_lstm:
-                inputs = inputs.unsqueeze(1)
+        inputs = X_train.to(device)
 
-            optimizer.zero_grad()
+        if is_lstm:
 
-            outputs = model(inputs)
+            # Already:
+            # [samples, sequence, features]
 
-            loss = criterion(outputs, targets)
+            pass
 
-            loss.backward()
+        outputs = model(inputs)
 
-            optimizer.step()
+        loss = criterion(
+            outputs,
+            y_train.to(device)
+        )
 
-            total_loss += loss.item()
+        loss.backward()
 
-        logger.info(f"Epoch {epoch + 1}/{epochs} | Loss={total_loss:.4f}")
+        optimizer.step()
+
+        logger.info(
+            f"Epoch {epoch + 1}/{epochs} "
+            f"| Loss={loss.item():.4f}"
+        )
 
     return model, device
 
 
 # ============================================================
-# Evaluate PyTorch model
+# EVALUATE PYTORCH
 # ============================================================
 
-
-def evaluate_torch_model(model, X_val, y_val, device, is_lstm=False):
-
-    X_val = torch.tensor(X_val, dtype=torch.float32).to(device)
-
-    if is_lstm:
-        X_val = X_val.unsqueeze(1)
+def evaluate_torch_model(
+    model,
+    X_test,
+    y_test,
+    device
+):
 
     model.eval()
 
+    X_test = torch.tensor(
+        X_test,
+        dtype=torch.float32
+    ).to(device)
+
     with torch.no_grad():
-        outputs = model(X_val)
 
-        predictions = torch.argmax(outputs, dim=1)
+        outputs = model(
+            X_test
+        )
 
-    predictions = predictions.cpu().numpy()
+        predictions = torch.argmax(
+            outputs,
+            dim=1
+        )
 
-    score = f1_score(y_val, predictions, zero_division=0)
+    predictions = (
+        predictions
+        .cpu()
+        .numpy()
+    )
 
-    return float(score)
+    return float(
+        accuracy_score(
+            y_test,
+            predictions
+        )
+    )
 
 
 # ============================================================
-# Train MLP / LSTM
+# MLP
 # ============================================================
 
+def train_mlp(
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    input_size,
+    config
+):
 
-def run_torch_model(name, model, X_train, y_train, X_val, y_val, config, is_lstm=False):
+    logger.info(
+        "Starting MLP training"
+    )
 
-    logger.info(f"Starting {name} training")
+    start = time.time()
 
-    start_time = time.time()
+    model = MLP(
+        input_size
+    )
 
-    train_loader = create_loader(X_train, y_train, config)
+    with mlflow.start_run(
+        run_name="MLP"
+    ):
 
-    model, device = train_torch_model(model, train_loader, config, is_lstm)
+        model, device = train_torch_model(
+            model,
+            X_train,
+            y_train,
+            config
+        )
 
-    f1 = evaluate_torch_model(model, X_val, y_val, device, is_lstm)
+        accuracy = evaluate_torch_model(
+            model,
+            X_test,
+            y_test,
+            device
+        )
 
-    training_time = time.time() - start_time
+        training_time = (
+            time.time() - start
+        )
 
-    # --------------------------------------------------------
-    # MLflow
-    # --------------------------------------------------------
+        mlflow.log_param(
+            "model",
+            "MLP"
+        )
 
-    mlflow.log_param("model", name)
+        mlflow.log_metric(
+            "accuracy",
+            accuracy
+        )
 
-    mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric(
+            "training_time",
+            training_time
+        )
 
-    mlflow.log_metric("training_time", training_time)
-
-    logger.info(f"{name} completed | F1={f1:.4f}")
+    logger.info(
+        f"MLP Accuracy = {accuracy:.4f}"
+    )
 
     return {
-        "model": name,
-        "f1_score": f1,
+        "model": "MLP",
+        "accuracy": accuracy,
         "training_time": training_time,
-        "model_object": model,
+        "model_object": model
     }
 
 
 # ============================================================
-# Random Forest - Ray
+# LSTM
 # ============================================================
 
+def train_lstm(
+    X,
+    y,
+    input_size,
+    config
+):
+
+    logger.info(
+        "Starting LSTM training"
+    )
+
+    start = time.time()
+
+    # --------------------------------------------------------
+    # Create sequences
+    # --------------------------------------------------------
+
+    X_seq, y_seq = create_sequences(
+        X,
+        y,
+        config["lstm"]["sequence_length"]
+    )
+
+    # --------------------------------------------------------
+    # Train-test split
+    # --------------------------------------------------------
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_seq,
+        y_seq,
+        test_size=0.2,
+        random_state=42,
+        stratify=y_seq
+    )
+
+    model = LSTMModel(
+        input_size
+    )
+
+    with mlflow.start_run(
+        run_name="LSTM"
+    ):
+
+        model, device = train_torch_model(
+            model,
+            X_train,
+            y_train,
+            config,
+            is_lstm=True
+        )
+
+        accuracy = evaluate_torch_model(
+            model,
+            X_test,
+            y_test,
+            device
+        )
+
+        training_time = (
+            time.time() - start
+        )
+
+        mlflow.log_param(
+            "model",
+            "LSTM"
+        )
+
+        mlflow.log_param(
+            "sequence_length",
+            config["lstm"]["sequence_length"]
+        )
+
+        mlflow.log_metric(
+            "accuracy",
+            accuracy
+        )
+
+        mlflow.log_metric(
+            "training_time",
+            training_time
+        )
+
+    logger.info(
+        f"LSTM Accuracy = {accuracy:.4f}"
+    )
+
+    return {
+        "model": "LSTM",
+        "accuracy": accuracy,
+        "training_time": training_time,
+        "model_object": model
+    }
+
+
+# ============================================================
+# RANDOM FOREST - RAY
+# ============================================================
 
 @ray.remote(num_cpus=1)
-def run_random_forest(train_df, val_df, config, num_trees, max_depth):
+def train_random_forest(
+    train_data,
+    test_data,
+    config,
+    num_trees,
+    max_depth
+):
 
-    logger.info(f"RF started | trees={num_trees} | depth={max_depth}")
+    start = time.time()
 
-    start_time = time.time()
+    logger.info(
+        f"RF started | trees={num_trees} "
+        f"| depth={max_depth}"
+    )
 
     spark = (
-        SparkSession.builder.appName(f"RF_{num_trees}_{max_depth}")
+        SparkSession.builder
+        .appName(
+            f"RF_{num_trees}_{max_depth}"
+        )
         .master("local[1]")
         .getOrCreate()
     )
 
     try:
-        # ----------------------------------------------------
-        # Pandas -> Spark
-        # ----------------------------------------------------
 
-        train = spark.createDataFrame(train_df)
+        train_df = spark.createDataFrame(
+            train_data
+        )
 
-        val = spark.createDataFrame(val_df)
+        test_df = spark.createDataFrame(
+            test_data
+        )
 
         # ----------------------------------------------------
-        # Feature vector
+        # Features
         # ----------------------------------------------------
 
         assembler = VectorAssembler(
-            inputCols=config["data"]["feature_columns"], outputCol="features"
+            inputCols=config["data"]["feature_columns"],
+            outputCol="features"
         )
 
-        train = assembler.transform(train)
+        train_df = assembler.transform(
+            train_df
+        )
 
-        val = assembler.transform(val)
+        test_df = assembler.transform(
+            test_df
+        )
 
         # ----------------------------------------------------
         # Label
         # ----------------------------------------------------
 
-        label_column = config["data"]["label_column"]
+        label_column = (
+            config["data"]["label_column"]
+        )
 
-        train = train.withColumn("label", col(label_column).cast("double"))
+        train_df = train_df.withColumn(
+            "label",
+            col(label_column).cast("double")
+        )
 
-        val = val.withColumn("label", col(label_column).cast("double"))
+        test_df = test_df.withColumn(
+            "label",
+            col(label_column).cast("double")
+        )
 
         # ----------------------------------------------------
-        # Random Forest
+        # Model
         # ----------------------------------------------------
 
-        rf = get_random_forest(num_trees=num_trees, max_depth=max_depth)
+        rf = get_random_forest(
+            num_trees,
+            max_depth
+        )
 
-        model = rf.fit(train)
+        model = rf.fit(
+            train_df
+        )
 
         # ----------------------------------------------------
-        # Validation
+        # Prediction
         # ----------------------------------------------------
 
-        predictions = model.transform(val)
+        predictions = model.transform(
+            test_df
+        )
 
-        rows = predictions.select("label", "prediction").collect()
+        rows = predictions.select(
+            "label",
+            "prediction"
+        ).collect()
 
-        y_true = [row["label"] for row in rows]
+        y_true = [
+            r["label"]
+            for r in rows
+        ]
 
-        y_pred = [row["prediction"] for row in rows]
+        y_pred = [
+            r["prediction"]
+            for r in rows
+        ]
 
-        f1 = f1_score(y_true, y_pred, zero_division=0)
+        accuracy = accuracy_score(
+            y_true,
+            y_pred
+        )
 
-        training_time = time.time() - start_time
+        training_time = (
+            time.time() - start
+        )
 
         logger.info(
-            f"RF completed | trees={num_trees} | depth={max_depth} | F1={f1:.4f}"
+            f"RF completed | "
+            f"trees={num_trees} | "
+            f"depth={max_depth} | "
+            f"accuracy={accuracy:.4f}"
         )
 
         return {
             "model": "RandomForest",
             "num_trees": num_trees,
             "max_depth": max_depth,
-            "f1_score": float(f1),
-            "training_time": training_time,
+            "accuracy": float(accuracy),
+            "training_time": training_time
         }
 
     finally:
+
         spark.stop()
 
 
 # ============================================================
-# Save best model
+# SAVE BEST MODEL
 # ============================================================
 
+def save_best_model(
+    best,
+    results,
+    config,
+    mlp_result=None,
+    lstm_result=None,
+    rf_train_data=None
+):
 
-def save_best_model(best, torch_model, train_df, config):
+    model_dir = Path(
+        config["output"]["model_dir"]
+    )
 
-    model_dir = Path(config["output"]["model_dir"])
+    metrics_dir = Path(
+        config["output"]["metrics_dir"]
+    )
 
-    metrics_dir = Path(config["output"]["metrics_dir"])
-
-    # --------------------------------------------------------
-    # Remove previous best model
-    # --------------------------------------------------------
+    # Remove previous model
 
     if model_dir.exists():
-        shutil.rmtree(model_dir)
 
-    model_dir.mkdir(parents=True, exist_ok=True)
+        shutil.rmtree(
+            model_dir
+        )
 
-    metrics_dir.mkdir(parents=True, exist_ok=True)
+    model_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
-    # ========================================================
-    # PyTorch
-    # ========================================================
+    metrics_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
-    if best["model"] in ["MLP", "LSTM"]:
-        model_to_save = torch_model
+    # --------------------------------------------------------
+    # MLP / LSTM
+    # --------------------------------------------------------
 
-        # torch.compile wrapper
-        if hasattr(model_to_save, "_orig_mod"):
-            model_to_save = model_to_save._orig_mod
+    if best["model"] in [
+        "MLP",
+        "LSTM"
+    ]:
 
-        torch.save(model_to_save.state_dict(), model_dir / "model.pt")
+        if best["model"] == "MLP":
 
-        logger.info(f"{best['model']} saved")
+            model = mlp_result[
+                "model_object"
+            ]
 
-    # ========================================================
+        else:
+
+            model = lstm_result[
+                "model_object"
+            ]
+
+        # Remove torch.compile wrapper
+
+        if hasattr(
+            model,
+            "_orig_mod"
+        ):
+
+            model = model._orig_mod
+
+        torch.save(
+            model.state_dict(),
+            model_dir / "model.pt"
+        )
+
+    # --------------------------------------------------------
     # Random Forest
-    # ========================================================
+    # --------------------------------------------------------
 
-    elif best["model"] == "RandomForest":
+    else:
+
         spark = (
-            SparkSession.builder.appName("SaveBestRF").master("local[1]").getOrCreate()
+            SparkSession.builder
+            .appName("SaveBestModel")
+            .master("local[1]")
+            .getOrCreate()
         )
 
         try:
-            train = spark.createDataFrame(train_df)
+
+            train_df = spark.createDataFrame(
+                rf_train_data
+            )
 
             assembler = VectorAssembler(
-                inputCols=config["data"]["feature_columns"], outputCol="features"
+                inputCols=config["data"]["feature_columns"],
+                outputCol="features"
             )
 
-            train = assembler.transform(train)
+            train_df = assembler.transform(
+                train_df
+            )
 
-            label_column = config["data"]["label_column"]
+            label_column = (
+                config["data"]["label_column"]
+            )
 
-            train = train.withColumn("label", col(label_column).cast("double"))
+            train_df = train_df.withColumn(
+                "label",
+                col(label_column).cast("double")
+            )
 
             rf = get_random_forest(
-                num_trees=best["num_trees"], max_depth=best["max_depth"]
+                best["num_trees"],
+                best["max_depth"]
             )
 
-            model = rf.fit(train)
+            model = rf.fit(
+                train_df
+            )
 
-            model.write().overwrite().save(str(model_dir))
-
-            logger.info("Best Random Forest saved")
+            model.write().overwrite().save(
+                str(model_dir)
+            )
 
         finally:
+
             spark.stop()
 
-    # ========================================================
-    # Best model metadata
-    # ========================================================
+    # --------------------------------------------------------
+    # Best model JSON
+    # --------------------------------------------------------
 
-    metadata = {
+    best_info = {
         "model": best["model"],
-        "f1_score": best["f1_score"],
-        "model_path": str(model_dir),
+        "accuracy": best["accuracy"],
+        "model_path": str(model_dir)
     }
 
     if best["model"] == "RandomForest":
-        metadata["num_trees"] = best["num_trees"]
 
-        metadata["max_depth"] = best["max_depth"]
+        best_info["num_trees"] = (
+            best["num_trees"]
+        )
 
-    with open(metrics_dir / "best_model.json", "w") as file:
-        json.dump(metadata, file, indent=4)
+        best_info["max_depth"] = (
+            best["max_depth"]
+        )
+
+    with open(
+        metrics_dir / "best_model.json",
+        "w"
+    ) as f:
+
+        json.dump(
+            best_info,
+            f,
+            indent=4
+        )
 
 
 # ============================================================
-# Main
+# MAIN
 # ============================================================
-
 
 def main():
 
@@ -429,15 +725,13 @@ def main():
     # MLflow
     # --------------------------------------------------------
 
-    mlflow.set_tracking_uri(config["mlflow"]["tracking_uri"])
+    mlflow.set_tracking_uri(
+        config["mlflow"]["tracking_uri"]
+    )
 
-    mlflow.set_experiment(config["mlflow"]["experiment_name"])
-
-    logger.info("================================")
-
-    logger.info("Training pipeline started")
-
-    logger.info("================================")
+    mlflow.set_experiment(
+        config["mlflow"]["experiment_name"]
+    )
 
     # --------------------------------------------------------
     # Dataset
@@ -446,39 +740,46 @@ def main():
     df = get_dataset()
 
     if df is None:
-        logger.error("Dataset loading failed")
-
         return
 
-    feature_columns = config["data"]["feature_columns"]
+    features = config[
+        "data"
+    ]["feature_columns"]
 
-    label_column = config["data"]["label_column"]
+    label = config[
+        "data"
+    ]["label_column"]
+
+    df = df[
+        features + [label]
+    ].dropna()
 
     # --------------------------------------------------------
-    # Remove missing values
+    # Split
     # --------------------------------------------------------
 
-    df = df[feature_columns + [label_column]].dropna()
-
-    # --------------------------------------------------------
-    # Train / validation split
-    # --------------------------------------------------------
-
-    train_df, val_df = train_test_split(
-        df, test_size=0.2, random_state=42, stratify=df[label_column]
+    train_df, test_df = train_test_split(
+        df,
+        test_size=0.2,
+        random_state=42,
+        stratify=df[label]
     )
 
-    # --------------------------------------------------------
-    # X / y
-    # --------------------------------------------------------
+    X_train = train_df[
+        features
+    ].values
 
-    X_train = train_df[feature_columns].values
+    y_train = train_df[
+        label
+    ].values
 
-    y_train = train_df[label_column].values
+    X_test = test_df[
+        features
+    ].values
 
-    X_val = val_df[feature_columns].values
-
-    y_val = val_df[label_column].values
+    y_test = test_df[
+        label
+    ].values
 
     # --------------------------------------------------------
     # Scaling
@@ -486,139 +787,161 @@ def main():
 
     scaler = StandardScaler()
 
-    X_train_scaled = scaler.fit_transform(X_train)
+    X_train_scaled = scaler.fit_transform(
+        X_train
+    )
 
-    X_val_scaled = scaler.transform(X_val)
-
-    logger.info("Feature scaling completed")
+    X_test_scaled = scaler.transform(
+        X_test
+    )
 
     # --------------------------------------------------------
-    # Results
-    # --------------------------------------------------------
-
-    results = []
-
-    # ========================================================
     # MLP
-    # ========================================================
+    # --------------------------------------------------------
 
-    with mlflow.start_run(run_name="MLP"):
-        mlp_result = run_torch_model(
-            name="MLP",
-            model=MLP(input_size=len(feature_columns)),
-            X_train=X_train_scaled,
-            y_train=y_train,
-            X_val=X_val_scaled,
-            y_val=y_val,
-            config=config,
-        )
+    mlp_result = train_mlp(
+        X_train_scaled,
+        y_train,
+        X_test_scaled,
+        y_test,
+        len(features),
+        config
+    )
 
-    results.append(mlp_result)
-
-    # ========================================================
+    # --------------------------------------------------------
     # LSTM
-    # ========================================================
+    # --------------------------------------------------------
 
-    with mlflow.start_run(run_name="LSTM"):
-        lstm_result = run_torch_model(
-            name="LSTM",
-            model=LSTMModel(input_dim=len(feature_columns)),
-            X_train=X_train_scaled,
-            y_train=y_train,
-            X_val=X_val_scaled,
-            y_val=y_val,
-            config=config,
-            is_lstm=True,
-        )
+    # Combine data first so sequences represent
+    # the original temporal ordering.
 
-    results.append(lstm_result)
+    X_scaled = StandardScaler().fit_transform(
+        df[features].values
+    )
 
-    # ========================================================
+    y = df[label].values
+
+    lstm_result = train_lstm(
+        X_scaled,
+        y,
+        len(features),
+        config
+    )
+
+    # --------------------------------------------------------
     # Random Forest + Ray
-    # ========================================================
+    # --------------------------------------------------------
 
-    logger.info("Starting Random Forest experiments with Ray")
+    logger.info(
+        "Starting Ray Random Forest experiments"
+    )
 
-    ray.init(ignore_reinit_error=True)
+    ray.init(
+        ignore_reinit_error=True
+    )
 
     futures = []
 
-    for num_trees in config["ray"]["num_trees"]:
-        for max_depth in config["ray"]["max_depth"]:
-            futures.append(
-                run_random_forest.remote(train_df, val_df, config, num_trees, max_depth)
+    for trees in config["ray"]["num_trees"]:
+
+        for depth in config["ray"]["max_depth"]:
+
+            future = train_random_forest.remote(
+                train_df,
+                test_df,
+                config,
+                trees,
+                depth
             )
 
-    logger.info(f"Submitted {len(futures)} RF experiments")
+            futures.append(
+                future
+            )
 
-    rf_results = ray.get(futures)
+    rf_results = ray.get(
+        futures
+    )
 
     ray.shutdown()
 
-    logger.info("Ray shutdown complete")
+    # --------------------------------------------------------
+    # Combine results
+    # --------------------------------------------------------
 
-    results.extend(rf_results)
+    results = [
+        {
+            "model": mlp_result["model"],
+            "accuracy": mlp_result["accuracy"],
+            "training_time": mlp_result["training_time"]
+        },
+        {
+            "model": lstm_result["model"],
+            "accuracy": lstm_result["accuracy"],
+            "training_time": lstm_result["training_time"]
+        }
+    ]
 
-    # ========================================================
-    # Remove model objects before JSON
-    # ========================================================
-
-    clean_results = []
-
-    for result in results:
-        clean_results.append(
-            {key: value for key, value in result.items() if key != "model_object"}
-        )
-
-    # ========================================================
-    # Select best model
-    # ========================================================
-
-    best = max(clean_results, key=lambda x: x["f1_score"])
-
-    logger.info(f"BEST MODEL = {best['model']}")
-
-    logger.info(f"BEST F1 = {best['f1_score']:.4f}")
-
-    # ========================================================
-    # Find PyTorch model
-    # ========================================================
-
-    torch_model = None
-
-    if best["model"] in ["MLP", "LSTM"]:
-        for result in results:
-            if result["model"] == best["model"]:
-                torch_model = result["model_object"]
-
-                break
-
-    # ========================================================
-    # Save best model
-    # ========================================================
-
-    save_best_model(
-        best=best, torch_model=torch_model, train_df=train_df, config=config
+    results.extend(
+        rf_results
     )
 
-    # ========================================================
-    # Save all results
-    # ========================================================
+    # --------------------------------------------------------
+    # Best model
+    # --------------------------------------------------------
 
-    metrics_dir = Path(config["output"]["metrics_dir"])
+    best = max(
+        results,
+        key=lambda x: x["accuracy"]
+    )
 
-    metrics_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(
+        f"BEST MODEL = {best['model']}"
+    )
 
-    with open(metrics_dir / "model_results.json", "w") as file:
-        json.dump(clean_results, file, indent=4)
+    logger.info(
+        f"BEST ACCURACY = "
+        f"{best['accuracy']:.4f}"
+    )
 
-    logger.info("model_results.json saved")
+    # --------------------------------------------------------
+    # Save
+    # --------------------------------------------------------
 
-    logger.info("================================")
+    save_best_model(
+        best,
+        results,
+        config,
+        mlp_result,
+        lstm_result,
+        train_df
+    )
 
-    logger.info("Training pipeline completed")
+    metrics_dir = Path(
+        config["output"]["metrics_dir"]
+    )
 
-    logger.info("================================")
+    with open(
+        metrics_dir / "model_results.json",
+        "w"
+    ) as f:
+
+        json.dump(
+            results,
+            f,
+            indent=4
+        )
+
+    logger.info(
+        "================================"
+    )
+
+    logger.info(
+        "Training pipeline completed"
+    )
+
+    logger.info(
+        "================================"
+    )
 
 
 if __name__ == "__main__":

@@ -119,7 +119,7 @@ else:
 @app.get("/")
 def home():
 
-    return {"status": "running", "model": MODEL_TYPE, "f1_score": best["f1_score"]}
+    return {"status": "running", "model": MODEL_TYPE, "accuracy": best["accuracy"]}
 
 
 # ============================================================
@@ -183,5 +183,5 @@ def predict(data: MachineData):
         if prediction == 1
         else "No machine failure predicted",
         "model": MODEL_TYPE,
-        "f1_score": best["f1_score"],
+        "accuracy": best["accuracy"],
     }

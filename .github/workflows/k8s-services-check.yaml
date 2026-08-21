@@ -1,0 +1,64 @@
+name: Kubernetes Services Health Check
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  check-k8s-services:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Start Minikube
+        uses: medyagh/setup-minikube@master
+        with:
+          minikube-version: 'latest'
+          driver: 'docker'
+          cpus: 2
+          memory: 4000mb
+
+      - name: Verify Minikube & kubectl
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Deploy Services to Kubernetes
+        run: |
+          kubectl create namespace ml-training --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -f k8s/base/
+          kubectl apply -f k8s/services/
+#         kubectl apply -f k8s/pipeline/
+
+      - name: Wait for Deployments to become Available
+        run: |
+          echo "Waiting for Airflow..."
+          kubectl rollout status deployment/airflow --timeout=180s
+
+          echo "Waiting for MLflow..."
+          kubectl rollout status deployment/mlflow --timeout=180s
+
+          echo "Waiting for Zookeeper..."
+          kubectl rollout status deployment/zookeeper --timeout=180s
+
+          echo "Waiting for Kafka..."
+          kubectl rollout status deployment/kafka --timeout=180s
+
+          echo "Waiting for Prometheus..."
+          kubectl rollout status deployment/prometheus --timeout=180s
+
+          echo "Waiting for Grafana..."
+          kubectl rollout status deployment/grafana --timeout=180s
+
+      - name: Verify Pod Status and Services
+        if: always()
+        run: |
+          echo "=== Pods Status ==="
+          kubectl get pods -o wide
+
+          echo "=== Services Status ==="
+          kubectl get svc

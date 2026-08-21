@@ -2,9 +2,7 @@ import os
 
 # Get the project root:
 # create_structure.py -> utility -> src -> project root
-PROJECT_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..")
-)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # Define project files relative to the project root
 files = [
@@ -14,18 +12,13 @@ files = [
     ".dvcignore",
     ".gitattributes",
     "pyproject.toml",
-
     # GitHub Actions
     ".github/workflows/ci.yaml",
-
-
     # Configuration
     "configs",
-
     # Airflow
     "airflow/dags/airflow_dag.py",
     "airflow/dags/common_dag.py",
-
     # folders
     "app",
     "data",
@@ -36,12 +29,8 @@ files = [
     "outputs",
     "tests",
     "src",
-
-
     # Docker
     "docker/docker-compose.yml",
-
-
     # Existing requirement files
     "requirements_full_wip.txt",
     "requirements-dev.txt",
@@ -49,7 +38,6 @@ files = [
 
 # Create directories and files relative to project root
 for file_path in files:
-
     # Convert relative path into absolute path
     full_path = os.path.join(PROJECT_ROOT, file_path)
 

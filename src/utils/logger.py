@@ -13,7 +13,11 @@ import os
 from logging.handlers import RotatingFileHandler
 from unittest.mock import call
 
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "monitoring", "logs")
+LOG_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "monitoring",
+    "logs",
+)
 os.makedirs(LOG_DIR, exist_ok=True)
 
 LOG_FILE = os.path.join(LOG_DIR, "application.log")
@@ -49,5 +53,3 @@ def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
 
     logger.propagate = False
     return logger
-
-

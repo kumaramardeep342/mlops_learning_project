@@ -1,0 +1,11 @@
+# Global owner for everything in the repo
+* @kumaramardeep342
+
+# Kubernetes infrastructure files require review from DevOps/Infra maintainers
+/k8s/ @dhananjAI-coder @kavyasreek9 @NusrathGit
+
+# Spark configuration changes
+/spark-cluster.yml @kavyasreek9 @NusrathGit
+
+# GitHub Actions workflows
+/.github/workflows/ @kumaramardeep342 @sjagga001sj @dhananjAI-coder

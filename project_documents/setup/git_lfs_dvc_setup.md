@@ -114,3 +114,24 @@ git commit -m "Track dataset"
 git push          # Push code to GitHub
 dvc push          # Upload data to Google Drive
 ```
+
+```bash
+# operational useful
+ex:
+# 1.Stop tracking with DVC and remove its cache:
+dvc remove data/raw/maintenance.csv.dvc
+# 2. Delete the files physically:
+rm data/raw/maintenance.csv data/raw/maintenance.csv.dvc
+# 3. Stage the removal in Git:
+git add data/raw/.gitignore
+git rm data/raw/maintenance.csv.dvc
+# 4. Track the new file with DVC:
+dvc add data/raw/ai4i2020.csv
+# 5. Commit the changes to Git
+git add data/raw/ai4i2020.csv.dvc data/raw/.gitignore
+git commit -m "ai4i2020.csv dataset"
+# 6. Push your code changes to GitHub:
+git push 
+# 7. Push the new dataset to your DVC remote storage:
+dvc push
+```

@@ -4,5 +4,5 @@ metadata:
   name: airflow-config
 data:
   AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-  AIRFLOW__CORE__EXECUTOR: "LocalExecutor"
+  AIRFLOW__CORE__EXECUTOR: "SequentialExecutor"
   AIRFLOW__SCHEDULER__MAX_THREADS: "2"

@@ -33,7 +33,9 @@ minikube status # check status
 # Apply Manifests & Deploy to Minikube
 minikube start --driver=docker
 # Apply all deployment files
+kubectl apply -f k8s/base/
 kubectl apply -f k8s/services/
+kubectl apply -f k8s/pipeline/
 # Check status of your Pods and Services
 kubectl get pods
 kubectl get svc
@@ -48,3 +50,12 @@ minikube service prometheus-service --url
 # Grafana UI
 minikube service grafana-service --url
 ```
+
+
+| Service | Local URL | Port-Forward Command | Default Credentials |
+| :--- | :--- | :--- | :--- |
+| **MLflow** | `http://localhost:5000` | `kubectl port-forward svc/mlflow-service 5000:5000` | None |
+| **Airflow** | `http://localhost:8080` | `kubectl port-forward svc/airflow-service 8080:8080` | None *(Standalone mode auto-logs in)* |
+| **Grafana** | `http://localhost:3000` | `kubectl port-forward svc/grafana-service 3000:3000` | **User:** `admin` / **Password:** `admin` |
+| **Prometheus** | `http://localhost:9090` | `kubectl port-forward svc/prometheus-service 9090:9090` | None |
+| **Kafka** | `localhost:9092` | `kubectl port-forward svc/kafka-service 9092:9092` | Internal Broker Port |

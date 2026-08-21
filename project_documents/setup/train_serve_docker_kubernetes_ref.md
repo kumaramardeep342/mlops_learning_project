@@ -100,3 +100,14 @@ kubectl port-forward svc/model-serving 8081:80 -n ml-training
 # Send a prediction request
 curl -X POST http://localhost:8081/predict -F "image=@test_image.jpeg"
 ```
+
+```bash
+# useful kubectl commands
+# describe pad 
+kubectl describe pod airflow-59f8ff95f-rq6f4
+# delete pod
+kubectl delete pod mlflow-697784bf8b-bgz44
+# restart the deployment
+kubectl rollout restart deployment/mlflow
+# delete the deployment
+kubectl delete deployment mlflow

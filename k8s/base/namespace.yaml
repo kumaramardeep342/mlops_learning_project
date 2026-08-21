@@ -3,4 +3,4 @@ kind: Namespace
 metadata:
   name: ml-training
   labels:
-    project: mlops-pytorch-pipeline
+    project: predictive_maintenance

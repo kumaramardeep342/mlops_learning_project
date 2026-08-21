@@ -226,3 +226,8 @@ monitoring/*
 # Ignore contents of outputs
 outputs/*
 !outputs/.gitkeep
+
+# Ignore contents of logs
+/monitoring/logs/*
+
+models/best_model/*

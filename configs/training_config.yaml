@@ -1,0 +1,51 @@
+data:
+
+  data_path: data/raw/ai4i2020.csv
+
+  feature_columns:
+    - Air temperature [K]
+    - Process temperature [K]
+    - Rotational speed [rpm]
+    - Torque [Nm]
+    - Tool wear [min]
+
+  label_column: Machine failure
+
+
+training:
+
+  batch_size: 64
+
+  epochs: 10
+
+  learning_rate: 0.001
+
+
+torch_compile:
+
+  enabled: true
+
+
+ray:
+
+  num_trees:
+    - 50
+    - 100
+
+  max_depth:
+    - 5
+    - 10
+
+
+mlflow:
+
+  tracking_uri: sqlite:///mlflow.db
+
+  experiment_name: predictive_maintenance
+
+
+output:
+
+  model_dir: models/best_model
+
+  metrics_dir: model_metrics

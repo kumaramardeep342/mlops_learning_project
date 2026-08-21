@@ -30,15 +30,35 @@ minikube status # check status
 
 ```bash
 # work with minikube
+
 # Apply Manifests & Deploy to Minikube
 minikube start --driver=docker
+
 # Apply all deployment files
 kubectl apply -f k8s/base/
+
+# full pipleline , not recomended due to high memory usage and system capacity below is recommened
 kubectl apply -f k8s/services/
+
+# during training phase
+# Turn OFF monitoring
+kubectl scale deployment prometheus grafana --replicas=0
+# Turn ON pipeline & tracking components
+kubectl scale deployment airflow mlflow kafka zookeeper --replicas=1
+
+# suring inference phase
+# Turn OFF training & orchestration
+kubectl scale deployment airflow mlflow kafka zookeeper --replicas=0
+# Turn ON monitoring & serving
+kubectl scale deployment prometheus grafana --replicas=1
+
+# run training pipeline
 kubectl apply -f k8s/pipeline/
+
 # Check status of your Pods and Services
 kubectl get pods
 kubectl get svc
+
 # Access UI services on your host machine
 # run the following commands in separate terminal windows to get the local URLs:
 # Mlflow UI
@@ -50,7 +70,6 @@ minikube service prometheus-service --url
 # Grafana UI
 minikube service grafana-service --url
 ```
-
 
 | Service | Local URL | Port-Forward Command | Default Credentials |
 | :--- | :--- | :--- | :--- |

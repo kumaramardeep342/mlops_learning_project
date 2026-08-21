@@ -65,7 +65,9 @@ def stream_csv():
     logger.info(f"Loaded {df.shape[0]} rows from {RAW_PATH}")
 
     producer = get_producer()
-    logger.info(f"Connected to Kafka at {BOOTSTRAP_SERVERS}, publishing to topic '{TOPIC}'")
+    logger.info(
+        f"Connected to Kafka at {BOOTSTRAP_SERVERS}, publishing to topic '{TOPIC}'"
+    )
 
     sent = 0
     start_time = time.time()
@@ -87,7 +89,9 @@ def stream_csv():
     throughput = sent / elapsed if elapsed > 0 else 0
 
     logger.info(f"Done. Total records published: {sent}")
-    logger.info(f"Time taken: {elapsed:.2f}s | Throughput: {throughput:.2f} records/sec")
+    logger.info(
+        f"Time taken: {elapsed:.2f}s | Throughput: {throughput:.2f} records/sec"
+    )
 
     producer.close()
 

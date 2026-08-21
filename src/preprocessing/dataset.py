@@ -9,21 +9,13 @@ logger = get_logger(__name__)
 def get_dataset():
 
     try:
+        df = pd.read_csv("data/raw/ai4i2020.csv")
 
-        df = pd.read_csv(
-            "data/raw/ai4i2020.csv"
-        )
-
-        logger.info(
-            "Dataset loaded successfully"
-        )
+        logger.info("Dataset loaded successfully")
 
         return df
 
     except Exception as e:
-
-        logger.error(
-            f"Dataset loading failed: {e}"
-        )
+        logger.error(f"Dataset loading failed: {e}")
 
         return None

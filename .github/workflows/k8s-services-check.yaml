@@ -29,9 +29,10 @@ jobs:
 
       - name: Deploy Services to Kubernetes
         run: |
+          kubectl create namespace ml-training --dry-run=client -o yaml | kubectl apply -f -
           kubectl apply -f k8s/base/
           kubectl apply -f k8s/services/
-#          kubectl apply -f k8s/pipeline/
+#         kubectl apply -f k8s/pipeline/
 
       - name: Wait for Deployments to become Available
         run: |

@@ -16,6 +16,7 @@ A clear and concise description of what you want to happen.
 - [ ] Airflow (DAGs / Scheduling)
 - [ ] Spark (Batch / Streaming Jobs)
 - [ ] Kafka / Zookeeper (Messaging)
+- [ ] Model Developement
 - [ ] MLflow (Tracking / Registry)
 - [ ] Prometheus / Grafana (Monitoring)
 - [ ] Kubernetes / Minikube Infrastructure

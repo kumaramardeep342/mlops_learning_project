@@ -1,5 +1,5 @@
 data:
-  data_path: data/raw/ai4i2020.csv
+  data_path: data/processed/data_features.csv
   feature_columns:
     - Air temperature [K]
     - Process temperature [K]
@@ -32,4 +32,4 @@ mlflow:
 
 output:
   checkpoints_dir: checkpoints
-  metrics_dir: checkpoints/model_metrics
+  metrics_dir: outputs/model_metrics

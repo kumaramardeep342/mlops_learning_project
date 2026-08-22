@@ -1,15 +1,20 @@
 """
-Training pipeline
+Predictive Maintenance Training Pipeline
 
-MLP  -> PyTorch + torch.compile
-LSTM -> PyTorch + torch.compile + sequences
-RF   -> Spark ML + Ray parallel experiments
-MLflow -> experiment tracking
+MLP       -> PyTorch + torch.compile
+LSTM      -> PyTorch + torch.compile + sequences
+RF        -> Spark ML
+Ray       -> Parallel RF experiments
+MLflow    -> Experiment tracking
+
+All trained PyTorch models are saved in checkpoints/.
+The best model is copied/saved under checkpoints/best_model/.
 """
 
 import json
 import shutil
 import time
+from pathlib import Path
 
 import mlflow
 import numpy as np
@@ -17,8 +22,6 @@ import ray
 import torch
 import torch.nn as nn
 import yaml
-
-from pathlib import Path
 
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
@@ -29,9 +32,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
 from src.training.model import MLP, LSTMModel, get_random_forest
-
 from src.preprocessing.dataset import get_dataset
-
 from src.utils.logger import get_logger
 
 
@@ -45,12 +46,12 @@ logger = get_logger(__name__)
 
 def load_config():
 
-    with open("configs/training_config.yaml") as f:
+    with open("configs/training_config.yaml", "r") as f:
         return yaml.safe_load(f)
 
 
 # ============================================================
-# SEQUENCE CREATION
+# SEQUENCES FOR LSTM
 # ============================================================
 
 
@@ -64,7 +65,7 @@ def create_sequences(X, y, seq_len):
 
         ys.append(y[i + seq_len])
 
-    return (np.array(Xs), np.array(ys))
+    return np.array(Xs), np.array(ys)
 
 
 # ============================================================
@@ -91,11 +92,11 @@ def compile_model(model, config):
 
 
 # ============================================================
-# TRAIN PYTORCH MODEL
+# PYTORCH TRAINING
 # ============================================================
 
 
-def train_torch_model(model, X_train, y_train, config, is_lstm=False):
+def train_torch_model(model, X_train, y_train, config):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -103,9 +104,9 @@ def train_torch_model(model, X_train, y_train, config, is_lstm=False):
 
     model = compile_model(model, config)
 
-    X_train = torch.tensor(X_train, dtype=torch.float32)
+    X_train = torch.tensor(X_train, dtype=torch.float32).to(device)
 
-    y_train = torch.tensor(y_train, dtype=torch.long)
+    y_train = torch.tensor(y_train, dtype=torch.long).to(device)
 
     criterion = nn.CrossEntropyLoss()
 
@@ -120,17 +121,9 @@ def train_torch_model(model, X_train, y_train, config, is_lstm=False):
 
         optimizer.zero_grad()
 
-        inputs = X_train.to(device)
+        outputs = model(X_train)
 
-        if is_lstm:
-            # Already:
-            # [samples, sequence, features]
-
-            pass
-
-        outputs = model(inputs)
-
-        loss = criterion(outputs, y_train.to(device))
+        loss = criterion(outputs, y_train)
 
         loss.backward()
 
@@ -142,11 +135,11 @@ def train_torch_model(model, X_train, y_train, config, is_lstm=False):
 
 
 # ============================================================
-# EVALUATE PYTORCH
+# PYTORCH EVALUATION
 # ============================================================
 
 
-def evaluate_torch_model(model, X_test, y_test, device):
+def evaluate_model(model, X_test, y_test, device):
 
     model.eval()
 
@@ -178,7 +171,7 @@ def train_mlp(X_train, y_train, X_test, y_test, input_size, config):
     with mlflow.start_run(run_name="MLP"):
         model, device = train_torch_model(model, X_train, y_train, config)
 
-        accuracy = evaluate_torch_model(model, X_test, y_test, device)
+        accuracy = evaluate_model(model, X_test, y_test, device)
 
         training_time = time.time() - start
 
@@ -209,15 +202,9 @@ def train_lstm(X, y, input_size, config):
 
     start = time.time()
 
-    # --------------------------------------------------------
-    # Create sequences
-    # --------------------------------------------------------
+    seq_len = config["lstm"]["sequence_length"]
 
-    X_seq, y_seq = create_sequences(X, y, config["lstm"]["sequence_length"])
-
-    # --------------------------------------------------------
-    # Train-test split
-    # --------------------------------------------------------
+    X_seq, y_seq = create_sequences(X, y, seq_len)
 
     X_train, X_test, y_train, y_test = train_test_split(
         X_seq, y_seq, test_size=0.2, random_state=42, stratify=y_seq
@@ -226,15 +213,15 @@ def train_lstm(X, y, input_size, config):
     model = LSTMModel(input_size)
 
     with mlflow.start_run(run_name="LSTM"):
-        model, device = train_torch_model(model, X_train, y_train, config, is_lstm=True)
+        model, device = train_torch_model(model, X_train, y_train, config)
 
-        accuracy = evaluate_torch_model(model, X_test, y_test, device)
+        accuracy = evaluate_model(model, X_test, y_test, device)
 
         training_time = time.time() - start
 
         mlflow.log_param("model", "LSTM")
 
-        mlflow.log_param("sequence_length", config["lstm"]["sequence_length"])
+        mlflow.log_param("sequence_length", seq_len)
 
         mlflow.log_metric("accuracy", accuracy)
 
@@ -251,7 +238,7 @@ def train_lstm(X, y, input_size, config):
 
 
 # ============================================================
-# RANDOM FOREST - RAY
+# RANDOM FOREST + RAY
 # ============================================================
 
 
@@ -273,10 +260,6 @@ def train_random_forest(train_data, test_data, config, num_trees, max_depth):
 
         test_df = spark.createDataFrame(test_data)
 
-        # ----------------------------------------------------
-        # Features
-        # ----------------------------------------------------
-
         assembler = VectorAssembler(
             inputCols=config["data"]["feature_columns"], outputCol="features"
         )
@@ -285,35 +268,23 @@ def train_random_forest(train_data, test_data, config, num_trees, max_depth):
 
         test_df = assembler.transform(test_df)
 
-        # ----------------------------------------------------
-        # Label
-        # ----------------------------------------------------
-
         label_column = config["data"]["label_column"]
 
         train_df = train_df.withColumn("label", col(label_column).cast("double"))
 
         test_df = test_df.withColumn("label", col(label_column).cast("double"))
 
-        # ----------------------------------------------------
-        # Model
-        # ----------------------------------------------------
-
         rf = get_random_forest(num_trees, max_depth)
 
         model = rf.fit(train_df)
-
-        # ----------------------------------------------------
-        # Prediction
-        # ----------------------------------------------------
 
         predictions = model.transform(test_df)
 
         rows = predictions.select("label", "prediction").collect()
 
-        y_true = [r["label"] for r in rows]
+        y_true = [row["label"] for row in rows]
 
-        y_pred = [r["prediction"] for r in rows]
+        y_pred = [row["prediction"] for row in rows]
 
         accuracy = accuracy_score(y_true, y_pred)
 
@@ -339,54 +310,60 @@ def train_random_forest(train_data, test_data, config, num_trees, max_depth):
 
 
 # ============================================================
+# SAVE PYTORCH CHECKPOINT
+# ============================================================
+
+
+def save_torch_checkpoint(model, path):
+
+    # torch.compile creates a wrapper.
+    # Save the original PyTorch model.
+
+    if hasattr(model, "_orig_mod"):
+        model = model._orig_mod
+
+    torch.save(model.state_dict(), path)
+
+
+# ============================================================
 # SAVE BEST MODEL
 # ============================================================
 
 
-def save_best_model(
-    best, results, config, mlp_result=None, lstm_result=None, rf_train_data=None
-):
+def save_best_model(best, mlp_result, lstm_result, rf_train_data, config):
 
-    model_dir = Path(config["output"]["model_dir"])
+    checkpoints_dir = Path(config["output"]["checkpoints_dir"])
 
-    metrics_dir = Path(config["output"]["metrics_dir"])
+    best_dir = checkpoints_dir / "best_model"
 
-    # Remove previous model
+    # Remove previous best model
 
-    if model_dir.exists():
-        shutil.rmtree(model_dir)
+    if best_dir.exists():
+        shutil.rmtree(best_dir)
 
-    model_dir.mkdir(parents=True, exist_ok=True)
-
-    metrics_dir.mkdir(parents=True, exist_ok=True)
+    best_dir.mkdir(parents=True, exist_ok=True)
 
     # --------------------------------------------------------
-    # MLP / LSTM
+    # MLP / LSTM wins
     # --------------------------------------------------------
 
-    if best["model"] in ["MLP", "LSTM"]:
-        if best["model"] == "MLP":
-            model = mlp_result["model_object"]
+    if best["model"] == "MLP":
+        source = checkpoints_dir / "mlp.pt"
 
-        else:
-            model = lstm_result["model_object"]
+        shutil.copy2(source, best_dir / "model.pt")
 
-        # Remove torch.compile wrapper
+    elif best["model"] == "LSTM":
+        source = checkpoints_dir / "lstm.pt"
 
-        if hasattr(model, "_orig_mod"):
-            model = model._orig_mod
-
-        torch.save(model.state_dict(), model_dir / "model.pt")
+        shutil.copy2(source, best_dir / "model.pt")
 
     # --------------------------------------------------------
-    # Random Forest
+    # Random Forest wins
     # --------------------------------------------------------
 
     else:
         spark = (
-            SparkSession.builder.appName("SaveBestModel")
-            .master("local[1]")
-            .getOrCreate()
+            SparkSession.builder.appName("SaveBestRF").master("local[1]").getOrCreate()
         )
 
         try:
@@ -406,25 +383,29 @@ def save_best_model(
 
             model = rf.fit(train_df)
 
-            model.write().overwrite().save(str(model_dir))
+            model.write().overwrite().save(str(best_dir))
 
         finally:
             spark.stop()
 
     # --------------------------------------------------------
-    # Best model JSON
+    # Best model information
     # --------------------------------------------------------
 
     best_info = {
         "model": best["model"],
         "accuracy": best["accuracy"],
-        "model_path": str(model_dir),
+        "model_path": str(best_dir),
     }
 
     if best["model"] == "RandomForest":
         best_info["num_trees"] = best["num_trees"]
 
         best_info["max_depth"] = best["max_depth"]
+
+    metrics_dir = Path(config["output"]["metrics_dir"])
+
+    metrics_dir.mkdir(parents=True, exist_ok=True)
 
     with open(metrics_dir / "best_model.json", "w") as f:
         json.dump(best_info, f, indent=4)
@@ -447,6 +428,16 @@ def main():
 
     mlflow.set_experiment(config["mlflow"]["experiment_name"])
 
+    logger.info("Training pipeline started")
+
+    # --------------------------------------------------------
+    # Directories
+    # --------------------------------------------------------
+
+    checkpoints_dir = Path(config["output"]["checkpoints_dir"])
+
+    checkpoints_dir.mkdir(parents=True, exist_ok=True)
+
     # --------------------------------------------------------
     # Dataset
     # --------------------------------------------------------
@@ -454,6 +445,8 @@ def main():
     df = get_dataset()
 
     if df is None:
+        logger.error("Dataset loading failed")
+
         return
 
     features = config["data"]["feature_columns"]
@@ -463,7 +456,7 @@ def main():
     df = df[features + [label]].dropna()
 
     # --------------------------------------------------------
-    # Split
+    # Train/Test split
     # --------------------------------------------------------
 
     train_df, test_df = train_test_split(
@@ -488,32 +481,41 @@ def main():
 
     X_test_scaled = scaler.transform(X_test)
 
-    # --------------------------------------------------------
+    # ========================================================
     # MLP
-    # --------------------------------------------------------
+    # ========================================================
 
     mlp_result = train_mlp(
         X_train_scaled, y_train, X_test_scaled, y_test, len(features), config
     )
 
-    # --------------------------------------------------------
+    # ALWAYS SAVE MLP
+    save_torch_checkpoint(mlp_result["model_object"], checkpoints_dir / "mlp.pt")
+
+    logger.info("MLP checkpoint saved")
+
+    # ========================================================
     # LSTM
-    # --------------------------------------------------------
+    # ========================================================
 
-    # Combine data first so sequences represent
-    # the original temporal ordering.
+    # Use the same scaler for the complete sequence data.
 
-    X_scaled = StandardScaler().fit_transform(df[features].values)
+    X_all_scaled = scaler.transform(df[features].values)
 
-    y = df[label].values
+    y_all = df[label].values
 
-    lstm_result = train_lstm(X_scaled, y, len(features), config)
+    lstm_result = train_lstm(X_all_scaled, y_all, len(features), config)
 
-    # --------------------------------------------------------
-    # Random Forest + Ray
-    # --------------------------------------------------------
+    # ALWAYS SAVE LSTM
+    save_torch_checkpoint(lstm_result["model_object"], checkpoints_dir / "lstm.pt")
 
-    logger.info("Starting Ray Random Forest experiments")
+    logger.info("LSTM checkpoint saved")
+
+    # ========================================================
+    # RANDOM FOREST + RAY
+    # ========================================================
+
+    logger.info("Starting Random Forest experiments with Ray")
 
     ray.init(ignore_reinit_error=True)
 
@@ -529,18 +531,20 @@ def main():
 
     ray.shutdown()
 
-    # --------------------------------------------------------
-    # Combine results
-    # --------------------------------------------------------
+    logger.info("Ray shutdown complete")
+
+    # ========================================================
+    # COMBINE RESULTS
+    # ========================================================
 
     results = [
         {
-            "model": mlp_result["model"],
+            "model": "MLP",
             "accuracy": mlp_result["accuracy"],
             "training_time": mlp_result["training_time"],
         },
         {
-            "model": lstm_result["model"],
+            "model": "LSTM",
             "accuracy": lstm_result["accuracy"],
             "training_time": lstm_result["training_time"],
         },
@@ -548,9 +552,9 @@ def main():
 
     results.extend(rf_results)
 
-    # --------------------------------------------------------
-    # Best model
-    # --------------------------------------------------------
+    # ========================================================
+    # BEST MODEL
+    # ========================================================
 
     best = max(results, key=lambda x: x["accuracy"])
 
@@ -558,16 +562,24 @@ def main():
 
     logger.info(f"BEST ACCURACY = {best['accuracy']:.4f}")
 
-    # --------------------------------------------------------
-    # Save
-    # --------------------------------------------------------
+    # ========================================================
+    # SAVE BEST MODEL
+    # ========================================================
 
-    save_best_model(best, results, config, mlp_result, lstm_result, train_df)
+    save_best_model(best, mlp_result, lstm_result, train_df, config)
+
+    # ========================================================
+    # SAVE RESULTS
+    # ========================================================
 
     metrics_dir = Path(config["output"]["metrics_dir"])
 
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+
     with open(metrics_dir / "model_results.json", "w") as f:
         json.dump(results, f, indent=4)
+
+    logger.info("Model results saved")
 
     logger.info("================================")
 

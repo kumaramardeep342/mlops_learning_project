@@ -1,0 +1,40 @@
+[
+    {
+        "model": "MLP",
+        "accuracy": 0.966,
+        "training_time": 9.61808967590332
+    },
+    {
+        "model": "LSTM",
+        "accuracy": 0.9659829914957478,
+        "training_time": 1.2915444374084473
+    },
+    {
+        "model": "RandomForest",
+        "num_trees": 50,
+        "max_depth": 5,
+        "accuracy": 0.9735,
+        "training_time": 48.12463021278381
+    },
+    {
+        "model": "RandomForest",
+        "num_trees": 50,
+        "max_depth": 10,
+        "accuracy": 0.9755,
+        "training_time": 52.37875175476074
+    },
+    {
+        "model": "RandomForest",
+        "num_trees": 100,
+        "max_depth": 5,
+        "accuracy": 0.9705,
+        "training_time": 48.48783206939697
+    },
+    {
+        "model": "RandomForest",
+        "num_trees": 100,
+        "max_depth": 10,
+        "accuracy": 0.9765,
+        "training_time": 55.02518343925476
+    }
+]

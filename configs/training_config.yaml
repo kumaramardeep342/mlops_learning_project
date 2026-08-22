@@ -49,6 +49,6 @@ mlflow:
 
 output:
 
-  model_dir: models/best_model
+  checkpoints_dir: checkpoints
 
-  metrics_dir: outputs/model_metrics
+  metrics_dir: checkpoints/model_metrics

@@ -1,14 +1,19 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
+
+# Install uv binary from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-COPY requirements/serve.txt .
-RUN pip install --no-cache-dir -r serve.txt \
-    && apt-get update && apt-get install -y --no-install-recommends curl \
+# Install curl for healthcheck along with dependencies using uv
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt-get/lists/*
+
+COPY pyproject.toml .
+RUN uv pip install --system .[serve]
 
 COPY src/ ./src/
 

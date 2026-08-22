@@ -22,6 +22,15 @@ spec:
         - name: trainer
           image: mlops-train:v1
           imagePullPolicy: Never
+          env:
+            - name: DATA_PATH
+              value: "/app/data/ai4i2020.csv"
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow-service.ml-training.svc.cluster.local:5000"
+            - name: MODEL_DIR
+              value: "/app/checkpoints/best_model"
+            - name: METRICS_DIR
+              value: "/app/checkpoints/model_metrics"
           resources:
             requests:
               cpu: "2"

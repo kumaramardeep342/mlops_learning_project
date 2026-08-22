@@ -52,6 +52,7 @@ python-multipart==0.0.32
 # Monitoring
 # =========================
 # prometheus-client==0.22.1
+prometheus-fastapi-instrumentator==7.0.0
 
 # =========================
 # Machine Learning

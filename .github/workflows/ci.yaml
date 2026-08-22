@@ -28,9 +28,9 @@ jobs:
         run: |
           uv sync --all-groups
 
-      # - name: Run Unit Tests
-      #   run: |
-      #     uv run pytest tests/
+      - name: Run Unit Tests
+        run: |
+          uv run pytest tests/
 
       # - name: Run Unit Tests
       #   run: |
@@ -39,22 +39,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # - name: Build Training Docker Image
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     context: .
-      #     file: docker/Dockerfile.train
-      #     tags: mlops-train:latest
-      #     push: false
-      #     cache-from: type=gha
-      #     cache-to: type=gha,mode=max
+      - name: Build Training Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.train
+          tags: mlops-train:latest
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # - name: Build Serving Docker Image
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     context: .
-      #     file: docker/Dockerfile.serve
-      #     tags: mlops-serve:latest
-      #     push: false
-      #     cache-from: type=gha
-      #     cache-to: type=gha,mode=max
+      - name: Build Serving Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.serve
+          tags: mlops-serve:latest
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,12 +1,13 @@
 """
-kafka/producer.py
+src/preprocessing/producer.py
 
-Reads the AI4I 2020 raw CSV row by row and publishes each row as a JSON
-message to a Kafka topic, simulating a live sensor feed for the
-inference pipeline.
+Reads the AI4I 2020 raw CSV as a Spark DataFrame (keeping the data path
+consistent with the rest of the Spark-based pipeline), then replays it
+row by row to a Kafka topic with a small delay, simulating a live
+sensor feed.
 
 Run:
-    python kafka/producer.py
+    python src/preprocessing/producer.py
 """
 
 import os
@@ -19,8 +20,7 @@ if __package__ is None or __package__ == "":
     if PROJECT_ROOT not in sys.path:
         sys.path.insert(0, PROJECT_ROOT)
 
-import pandas as pd
-import numpy as np
+from pyspark.sql import SparkSession
 from kafka import KafkaProducer
 
 from src.utils.logger import get_logger
@@ -33,23 +33,16 @@ RAW_PATH = "data/raw/ai4i2020.csv"
 DELAY_SECONDS = 0.2  # gap between messages — simulates a live sensor feed
 
 
-def make_json_safe(value):
-    """Converts numpy/pandas types to plain Python types so json.dumps works."""
-    if isinstance(value, (np.integer,)):
-        return int(value)
-    if isinstance(value, (np.floating,)):
-        return float(value)
-    if isinstance(value, (np.bool_,)):
-        return bool(value)
-    return value
+def get_spark_session():
+    return (
+        SparkSession.builder
+        .appName("PredictiveMaintenance-KafkaProducer")
+        .master("local[*]")
+        .getOrCreate()
+    )
 
 
-def row_to_message(row: pd.Series) -> dict:
-    """Converts a pandas row into a JSON-serializable dict."""
-    return {col: make_json_safe(val) for col, val in row.to_dict().items()}
-
-
-def get_producer() -> KafkaProducer:
+def get_kafka_producer() -> KafkaProducer:
     return KafkaProducer(
         bootstrap_servers=BOOTSTRAP_SERVERS,
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),
@@ -61,22 +54,26 @@ def stream_csv():
     if not os.path.exists(RAW_PATH):
         raise FileNotFoundError(f"Raw data file not found: {RAW_PATH}")
 
-    df = pd.read_csv(RAW_PATH)
-    logger.info(f"Loaded {df.shape[0]} rows from {RAW_PATH}")
+    spark = get_spark_session()
 
-    producer = get_producer()
-    logger.info(
-        f"Connected to Kafka at {BOOTSTRAP_SERVERS}, publishing to topic '{TOPIC}'"
-    )
+    df = spark.read.csv(RAW_PATH, header=True, inferSchema=True)
+    row_count = df.count()
+    logger.info(f"Loaded {row_count} rows from {RAW_PATH} as a Spark DataFrame")
+
+    kafka_producer = get_kafka_producer()
+    logger.info(f"Connected to Kafka at {BOOTSTRAP_SERVERS}, publishing to topic '{TOPIC}'")
 
     sent = 0
     start_time = time.time()
 
-    for _, row in df.iterrows():
-        message = row_to_message(row)
-        key = str(message.get("UDI", sent))  # UDI as partition key
+    # toLocalIterator() streams rows from Spark to the driver one at a
+    # time instead of collecting everything into memory at once —
+    # keeps this scalable if the source data grows much larger
+    for row in df.toLocalIterator():
+        message = row.asDict()
+        key = str(message.get("UDI", sent))
 
-        producer.send(TOPIC, key=key, value=message)
+        kafka_producer.send(TOPIC, key=key, value=message)
         sent += 1
 
         if sent % 500 == 0:
@@ -84,16 +81,15 @@ def stream_csv():
 
         time.sleep(DELAY_SECONDS)
 
-    producer.flush()
+    kafka_producer.flush()
     elapsed = time.time() - start_time
     throughput = sent / elapsed if elapsed > 0 else 0
 
     logger.info(f"Done. Total records published: {sent}")
-    logger.info(
-        f"Time taken: {elapsed:.2f}s | Throughput: {throughput:.2f} records/sec"
-    )
+    logger.info(f"Time taken: {elapsed:.2f}s | Throughput: {throughput:.2f} records/sec")
 
-    producer.close()
+    kafka_producer.close()
+    spark.stop()
 
 
 if __name__ == "__main__":

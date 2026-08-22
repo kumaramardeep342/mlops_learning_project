@@ -1,0 +1,18 @@
+2026-08-21 05:56:04 | INFO     | __main__ | Loading raw data from data/raw/ai4i2020.csv
+2026-08-21 05:56:04 | INFO     | __main__ | Loaded 10000 rows, 14 columns
+2026-08-21 05:56:04 | INFO     | __main__ | Dropped ID columns: ['UDI', 'Product ID']
+2026-08-21 05:56:04 | INFO     | __main__ | Missing values handled: 0 -> 0
+2026-08-21 05:56:04 | INFO     | __main__ | Encoded 'Type': classes ['H', 'L', 'M'] -> [0, 1, 2]
+2026-08-21 05:56:04 | INFO     | __main__ | Scaled numeric columns with StandardScaler: ['Air temperature [K]', 'Process temperature [K]', 'Rotational speed [rpm]', 'Torque [Nm]', 'Tool wear [min]']
+2026-08-21 05:56:04 | INFO     | __main__ | Saved train (8000 rows, 271 failures) -> data/processed/train.csv
+2026-08-21 05:56:04 | INFO     | __main__ | Saved test (2000 rows, 68 failures) -> data/processed/test.csv
+2026-08-21 05:56:04 | INFO     | __main__ | Preprocessing pipeline completed successfully
+2026-08-21 07:56:53 | INFO     | __main__ | [train] Reading input from data/processed/train.csv
+2026-08-21 07:56:59 | INFO     | __main__ | [train] Row count: 8000
+2026-08-21 07:56:59 | INFO     | __main__ | Derived features added: power, temp_diff, overstrain_indicator
+2026-08-21 07:57:00 | INFO     | __main__ | [train] Feature-engineered data written to data/features/train_features.parquet
+2026-08-21 07:57:00 | INFO     | __main__ | [test] Reading input from data/processed/test.csv
+2026-08-21 07:57:01 | INFO     | __main__ | [test] Row count: 2000
+2026-08-21 07:57:01 | INFO     | __main__ | Derived features added: power, temp_diff, overstrain_indicator
+2026-08-21 07:57:01 | INFO     | __main__ | [test] Feature-engineered data written to data/features/test_features.parquet
+2026-08-21 07:57:02 | INFO     | __main__ | Spark feature engineering job completed successfully

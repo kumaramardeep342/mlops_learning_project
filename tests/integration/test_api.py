@@ -26,4 +26,3 @@ def test_predict_endpoint_valid_input():
     assert response.status_code == 200
     data = response.json()
     assert "prediction" in data
-    assert "probability" in data

@@ -60,7 +60,8 @@ jobs:
           minikube-version: 'latest'
           driver: 'docker'
           cpus: 2
-          memory: 6000mb
+          memory: 8192mb
+          disk-size: 20000mb
 
       - name: Deploy to Kubernetes
         run: |
@@ -86,9 +87,9 @@ jobs:
             {"op": "remove", "path": "/spec/strategy/rollingUpdate"}
           ]' || true
 
-          # 5. Load image into Minikube and force restart deployment
+          # 5. Load built image directly into Minikube cluster
           minikube image load ${{ steps.meta.outputs.tags }}
-          kubectl rollout restart deployment/mlflow -n ml-training
+          kubectl set image deployment/mlflow mlflow=${{ steps.meta.outputs.tags }} -n ml-training
 
           # 6. Verify rollout status
           if ! kubectl rollout status deployment/mlflow -n ml-training --timeout=180s; then
@@ -101,29 +102,27 @@ jobs:
 
       - name: Post-Deployment Smoke Test
         run: |
-          # Start port-forwarding in background
-          kubectl port-forward svc/mlflow-service 8000:5000 -n ml-training &
-          PID=$!
+          # Establish background port-forwarding to service
+          kubectl port-forward svc/mlflow-service 5000:5000 -n ml-training &
+          PF_PID=$!
 
-          # Wait for port-forward connection to be established
-          echo "Waiting for port-forward to become active..."
-          RESPONSE="000"
-          for i in {1..15}; do
-            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/ || echo "000")
+          echo "Waiting for MLflow server to respond on port 5000..."
+          SUCCESS=0
+          for i in {1..30}; do
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/health || echo "000")
             if [ "$RESPONSE" = "200" ]; then
+              echo "Health check passed with HTTP 200!"
+              SUCCESS=1
               break
             fi
             sleep 2
           done
 
-          echo "HTTP Response Code: $RESPONSE"
+          # Cleanup background port-forward safely
+          kill $PF_PID 2>/dev/null || true
 
-          # Kill background port-forward
-          kill $PID || true
-
-          # Evaluate response
-          if [ "$RESPONSE" != "200" ]; then
-            echo "Deployment smoke test failed!"
+          if [ $SUCCESS -ne 1 ]; then
+            echo "Deployment smoke test failed! Last HTTP response: $RESPONSE"
             echo "=== Pod Status ==="
             kubectl get pods -n ml-training
             echo "=== Pod Logs ==="

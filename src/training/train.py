@@ -43,9 +43,7 @@ def load_config():
         config = yaml.safe_load(f)
 
     # Environment variables override YAML for Kubernetes / production parity
-    config["data"]["data_path"] = os.getenv(
-        "DATA_PATH", config["data"]["data_path"]
-    )
+    config["data"]["data_path"] = os.getenv("DATA_PATH", config["data"]["data_path"])
     config["mlflow"]["tracking_uri"] = os.getenv(
         "MLFLOW_TRACKING_URI", config["mlflow"]["tracking_uri"]
     )
@@ -59,9 +57,7 @@ def load_config():
     default_metrics_dir = config["output"].get(
         "metrics_dir", "checkpoints/model_metrics"
     )
-    config["output"]["metrics_dir"] = os.getenv(
-        "METRICS_DIR", default_metrics_dir
-    )
+    config["output"]["metrics_dir"] = os.getenv("METRICS_DIR", default_metrics_dir)
 
     return config
 
@@ -198,9 +194,7 @@ def train_lstm(X, y, input_size, config):
     model = LSTMModel(input_size)
 
     with mlflow.start_run(run_name="LSTM"):
-        model, device = train_torch_model(
-            model, X_train, y_train, config, is_lstm=True
-        )
+        model, device = train_torch_model(model, X_train, y_train, config, is_lstm=True)
         accuracy = evaluate_torch_model(model, X_test, y_test, device)
         training_time = time.time() - start
 
@@ -247,9 +241,7 @@ def train_random_forest(train_data, test_data, config, num_trees, max_depth):
         test_df = assembler.transform(test_df)
 
         label_column = config["data"]["label_column"]
-        train_df = train_df.withColumn(
-            "label", col(label_column).cast("double")
-        )
+        train_df = train_df.withColumn("label", col(label_column).cast("double"))
         test_df = test_df.withColumn("label", col(label_column).cast("double"))
 
         rf = get_random_forest(num_trees, max_depth)
@@ -324,9 +316,7 @@ def save_best_model(
             train_df = assembler.transform(train_df)
 
             label_column = config["data"]["label_column"]
-            train_df = train_df.withColumn(
-                "label", col(label_column).cast("double")
-            )
+            train_df = train_df.withColumn("label", col(label_column).cast("double"))
 
             rf = get_random_forest(best["num_trees"], best["max_depth"])
             model = rf.fit(train_df)
@@ -365,9 +355,7 @@ def main():
     df = get_dataset(data_path=config["data"]["data_path"])
 
     if df is None:
-        logger.error(
-            f"Failed to load dataset from path: {config['data']['data_path']}"
-        )
+        logger.error(f"Failed to load dataset from path: {config['data']['data_path']}")
         return
 
     features = config["data"]["feature_columns"]
@@ -406,9 +394,7 @@ def main():
     futures = []
     for trees in config["ray"]["num_trees"]:
         for depth in config["ray"]["max_depth"]:
-            future = train_random_forest.remote(
-                train_df, test_df, config, trees, depth
-            )
+            future = train_random_forest.remote(train_df, test_df, config, trees, depth)
             futures.append(future)
 
     rf_results = ray.get(futures)

@@ -7,6 +7,7 @@ from src.training.model import MLP, LSTMModel, get_random_forest
 # MLP Model Tests
 # ============================================================
 
+
 def test_mlp_initialization():
     """Test if MLP initializes without errors."""
     model = MLP(input_size=5)
@@ -43,6 +44,7 @@ def test_mlp_numerical_stability():
 # LSTM Model Tests
 # ============================================================
 
+
 def test_lstm_initialization():
     """Test if LSTMModel initializes without errors."""
     model = LSTMModel(input_size=5)
@@ -78,6 +80,7 @@ def test_lstm_numerical_stability():
 # ============================================================
 # Random Forest Tests (PySpark)
 # ============================================================
+
 
 @pytest.fixture(scope="module")
 def spark_session():

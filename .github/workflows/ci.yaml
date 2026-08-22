@@ -29,6 +29,8 @@ jobs:
           uv sync --all-groups
 
       - name: Run Unit Tests
+        env:
+          PYTHONPATH: .
         run: |
           uv run pytest tests/
 

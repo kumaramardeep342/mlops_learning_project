@@ -45,12 +45,14 @@ Instrumentator().instrument(app).expose(app)
 # Input Schema
 # ============================================================
 
+
 class MachineData(BaseModel):
     air_temperature: float
     process_temperature: float
     rotational_speed: float
     torque: float
     tool_wear: float
+
 
 # ============================================================
 # Load Model
@@ -96,13 +98,16 @@ else:
 # Endpoints
 # ============================================================
 
+
 @app.get("/health")
 def health():
     return {"status": "healthy"}
 
+
 @app.get("/")
 def home():
     return {"status": "running", "model": MODEL_TYPE, "accuracy": best["accuracy"]}
+
 
 @app.post("/predict")
 def predict(data: MachineData):
@@ -141,7 +146,9 @@ def predict(data: MachineData):
 
     return {
         "prediction": prediction,
-        "message": "Machine failure predicted" if prediction == 1 else "No machine failure predicted",
+        "message": "Machine failure predicted"
+        if prediction == 1
+        else "No machine failure predicted",
         "model": MODEL_TYPE,
         "accuracy": best["accuracy"],
     }

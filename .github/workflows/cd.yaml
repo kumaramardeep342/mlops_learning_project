@@ -2,9 +2,9 @@ name: Continuous Deployment Predictive Maintenance
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
   build-and-deploy:
@@ -17,6 +17,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # Free up disk space on GitHub runner host before starting Minikube
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          docker system prune -af
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -24,48 +32,104 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: docker/Dockerfile.serve
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Setup Minikube (For CI/Testing)
+      - name: Setup Minikube (For Continuous Deployment)
         uses: medyagh/setup-minikube@master
         with:
           minikube-version: 'latest'
+          driver: 'docker'
+          cpus: 2
+          memory: 4096mb
+          disk-size: 10000mb
 
       - name: Deploy to Kubernetes
         run: |
           # 1. Create namespace if missing
           kubectl create namespace ml-training --dry-run=client -o yaml | kubectl apply -f -
 
-          # 2. Apply manifests in dependency order
+          # 2. Create imagePullSecret for GHCR access
+          kubectl create secret docker-registry ghcr-secret \
+            --namespace=ml-training \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # 3. Apply base manifests
           kubectl apply -f k8s/base/ -n ml-training
           kubectl apply -f k8s/services/ -n ml-training
           kubectl apply -f k8s/monitoring/ -n ml-training
 
-          # 3. Update container image in the ml-training namespace
-          kubectl set image deployment/mlflow mlflow=ghcr.io/${{ github.repository }}:latest -n ml-training
+          # 4. Patch MLflow deployment strategy (clearing rollingUpdate parameters)
+          kubectl patch deployment mlflow -n ml-training --type=json -p='[
+            {"op": "replace", "path": "/spec/strategy/type", "value": "Recreate"},
+            {"op": "remove", "path": "/spec/strategy/rollingUpdate"}
+          ]' || true
 
-          # 4. Verify rollout
-          kubectl rollout status deployment/mlflow -n ml-training --timeout=180s
-      
+          # 5. Load image into Minikube and restart deployment
+          minikube image load ${{ steps.meta.outputs.tags }}
+          kubectl rollout restart deployment/mlflow -n ml-training
+
+          # 6. Verify rollout status
+          if ! kubectl rollout status deployment/mlflow -n ml-training --timeout=180s; then
+            echo "=== Rollout Failed! Pod Status: ==="
+            kubectl get pods -n ml-training
+            echo "=== Pod Descriptions & Events: ==="
+            kubectl describe pods -l app=mlflow -n ml-training
+            exit 1
+          fi
+
       - name: Post-Deployment Smoke Test
         run: |
-          # Forward host port to the deployment inside Kubernetes
-          kubectl port-forward svc/mlflow-service 8000:5000 -n ml-training &
-          PID=$!
-          sleep 5
+          echo "Waiting for MLflow pod to complete database initialization..."
+          sleep 10
 
-          # Test endpoint availability
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/)
+          # Start port-forwarding in background
+          kubectl port-forward svc/mlflow-service 5000:5000 -n ml-training &
+          PF_PID=$!
 
-          # Kill port-forward process
-          kill $PID
+          echo "Polling MLflow server on http://127.0.0.1:5000/health..."
+          SUCCESS=0
+          for i in {1..30}; do
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/health || echo "000")
+            if [ "$RESPONSE" = "200" ]; then
+              echo "Health check passed with HTTP 200!"
+              SUCCESS=1
+              break
+            fi
+            echo "Attempt $i: Received HTTP $RESPONSE. Retrying in 3s..."
+            sleep 3
+          done
 
-          if [ "$RESPONSE" -ne 200 ]; then
-            echo "Deployment smoke test failed!"
+          # Cleanup background port-forward safely
+          kill $PF_PID 2>/dev/null || true
+
+          if [ $SUCCESS -ne 1 ]; then
+            echo "Deployment smoke test failed! Last HTTP response: $RESPONSE"
+            echo "=== Pod Status ==="
+            kubectl get pods -n ml-training
+            echo "=== Pod Logs ==="
+            kubectl logs -l app=mlflow -n ml-training --tail=50
             exit 1
           fi

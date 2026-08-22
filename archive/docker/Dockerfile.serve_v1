@@ -1,0 +1,35 @@
+FROM python:3.12-slim
+
+# Install uv binary from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install curl for healthcheck along with dependencies using uv
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt-get/lists/*
+
+COPY pyproject.toml .
+# RUN uv pip install --system .[serve]
+# Install CPU-only PyTorch for serving and clean cache to free disk space
+RUN uv pip install --system \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    --index-strategy unsafe-best-match \
+    .[serve] \
+    && uv cache clean
+
+COPY src/ ./src/
+
+# Running as non-root user
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+ENTRYPOINT ["uvicorn", "src.inference.serve:app", "--host", "0.0.0.0", "--port", "8080"]

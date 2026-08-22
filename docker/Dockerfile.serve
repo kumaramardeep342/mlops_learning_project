@@ -1,35 +1,42 @@
-FROM python:3.12-slim
+# Stage 1: Base image with dependencies using uv
+FROM python:3.12-slim AS base
+
+# Install OpenJDK for PySpark
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    default-jre-headless \
+    curl \
+    && rm -rf /var/lib/apt-get/lists/*
+
+# Set JAVA_HOME environment variable
+ENV JAVA_HOME=/usr/lib/jvm/default-java \
+    PATH="/usr/lib/jvm/default-java/bin:${PATH}" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 # Install uv binary from official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Install curl for healthcheck along with dependencies using uv
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt-get/lists/*
-
 COPY pyproject.toml .
-# RUN uv pip install --system .[serve]
-# Install CPU-only PyTorch for serving and clean cache to free disk space
+
+# Install CPU PyTorch & dependencies, then clear cache to save space
 RUN uv pip install --system \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     --index-strategy unsafe-best-match \
     .[serve] \
     && uv cache clean
 
+# Stage 2: Serving runtime
+FROM base AS serving
+
+WORKDIR /app
+
 COPY src/ ./src/
 
-# Running as non-root user
 RUN useradd -m appuser && chown -R appuser:appuser /app
+
+# Switch to non-root user
 USER appuser
 
-EXPOSE 8080
-
-HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
-
-ENTRYPOINT ["uvicorn", "src.inference.serve:app", "--host", "0.0.0.0", "--port", "8080"]
+ENTRYPOINT ["uvicorn", "src.inference.serve:app", "--host", "0.0.0.0", "--port", "8000"]

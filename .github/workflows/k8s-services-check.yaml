@@ -20,7 +20,7 @@ jobs:
           minikube-version: 'latest'
           driver: 'docker'
           cpus: 2
-          memory: 4000mb
+          memory: 6000mb
 
       - name: Verify Minikube & kubectl
         run: |

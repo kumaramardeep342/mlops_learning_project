@@ -72,8 +72,11 @@ jobs:
           kubectl apply -f k8s/services/ -n ml-training
           kubectl apply -f k8s/monitoring/ -n ml-training
 
-          # 4. Patch MLflow deployment to use Recreate strategy to handle PVC lock properly
-          kubectl patch deployment mlflow -n ml-training -p '{"spec":{"strategy":{"type":"Recreate"}}}'
+          # 4. Patch MLflow deployment strategy (clearing rollingUpdate parameters)
+          kubectl patch deployment mlflow -n ml-training --type=json -p='[
+            {"op": "replace", "path": "/spec/strategy/type", "value": "Recreate"},
+            {"op": "remove", "path": "/spec/strategy/rollingUpdate"}
+          ]' || true
 
           # 5. Load image into Minikube and force restart deployment
           minikube image load ${{ steps.meta.outputs.tags }}

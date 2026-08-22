@@ -102,11 +102,14 @@ jobs:
 
       - name: Post-Deployment Smoke Test
         run: |
-          # Establish background port-forwarding to service
+          echo "Waiting for MLflow pod to complete database initialization..."
+          sleep 10
+
+          # Start port-forwarding in background
           kubectl port-forward svc/mlflow-service 5000:5000 -n ml-training &
           PF_PID=$!
 
-          echo "Waiting for MLflow server to respond on port 5000..."
+          echo "Polling MLflow server on http://127.0.0.1:5000/health..."
           SUCCESS=0
           for i in {1..30}; do
             RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/health || echo "000")
@@ -115,7 +118,8 @@ jobs:
               SUCCESS=1
               break
             fi
-            sleep 2
+            echo "Attempt $i: Received HTTP $RESPONSE. Retrying in 3s..."
+            sleep 3
           done
 
           # Cleanup background port-forward safely

@@ -60,8 +60,8 @@ jobs:
           minikube-version: 'latest'
           driver: 'docker'
           cpus: 2
-          memory: 6000mb
-          disk-size: 20000mb
+          memory: 4096mb
+          disk-size: 10000mb
 
       - name: Deploy to Kubernetes
         run: |
@@ -87,9 +87,9 @@ jobs:
             {"op": "remove", "path": "/spec/strategy/rollingUpdate"}
           ]' || true
 
-          # 5. Load built image directly into Minikube cluster
+          # 5. Load image into Minikube and restart deployment
           minikube image load ${{ steps.meta.outputs.tags }}
-          kubectl set image deployment/mlflow mlflow=${{ steps.meta.outputs.tags }} -n ml-training
+          kubectl rollout restart deployment/mlflow -n ml-training
 
           # 6. Verify rollout status
           if ! kubectl rollout status deployment/mlflow -n ml-training --timeout=180s; then

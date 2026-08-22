@@ -52,6 +52,7 @@ python-multipart==0.0.32
 # Monitoring
 # =========================
 # prometheus-client==0.22.1
+prometheus-fastapi-instrumentator==7.0.0
 
 # =========================
 # Machine Learning
@@ -83,3 +84,4 @@ ruff==0.12.0
 # developement
 #===========================
 ipykernel==7.2.0
+httpx==0.28.0

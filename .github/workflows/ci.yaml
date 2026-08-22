@@ -2,9 +2,9 @@ name: Continuous Integration Predictive Maintenance
 
 on:
   push:
-    branches: [ main , develop ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main , develop ]
+    branches: [ main, develop ]
 
 jobs:
   test-and-build:
@@ -13,6 +13,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Free Disk Space on Runner
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo docker image prune --all --force
+          
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
@@ -26,35 +34,105 @@ jobs:
 
       - name: Install Dependencies with uv
         run: |
-          uv sync --all-groups
+          uv sync --all-extras --all-groups
 
-      # - name: Run Unit Tests
-      #   run: |
-      #     uv run pytest tests/
+      - name: Generate Dummy Checkpoint for Tests
+        run: |
+          uv run python -c "
+          from pyspark.sql import SparkSession
+          from pyspark.ml.classification import RandomForestClassifier
+          from pyspark.ml.linalg import Vectors
+          import os
 
-      # - name: Run Unit Tests
-      #   run: |
-      #     PYTHONPATH=. pytest tests/
+          spark = SparkSession.builder.appName('dummy').getOrCreate()
+          df = spark.createDataFrame([(0, Vectors.dense([0.0, 0.0, 0.0, 0.0, 0.0]))], ['label', 'features'])
+          rf = RandomForestClassifier()
+          model = rf.fit(df)
+          os.makedirs('checkpoints/best_model', exist_ok=True)
+          model.write().overwrite().save('checkpoints/best_model')
+          "
 
+      - name: Run Unit Tests
+        env:
+          PYTHONPATH: .
+        run: |
+          uv run pytest tests/          
+          
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # - name: Build Training Docker Image
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     context: .
-      #     file: docker/Dockerfile.train
-      #     tags: mlops-train:latest
-      #     push: false
-      #     cache-from: type=gha
-      #     cache-to: type=gha,mode=max
+      - name: Build Training Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.train
+          tags: mlops-train:latest
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # - name: Build Serving Docker Image
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     context: .
-      #     file: docker/Dockerfile.serve
-      #     tags: mlops-serve:latest
-      #     push: false
-      #     cache-from: type=gha
-      #     cache-to: type=gha,mode=max
+      - name: Build Serving Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.serve
+          tags: mlops-serve:latest
+          push: false
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start Serving Container
+        run: |
+          docker run -d \
+            --name test-api \
+            -p 8000:8000 \
+            -e PORT=8000 \
+            -v $(pwd)/checkpoints:/app/checkpoints \
+            mlops-serve:latest
+
+      - name: Wait for API Readiness
+        run: |
+          echo "Waiting for API to respond on /health..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/health > /dev/null; then
+              echo "API is ready!"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API failed to become ready in time."
+          docker logs test-api
+          exit 1
+
+      - name: Test Prediction Endpoint
+        run: |
+          # Execute test request and prevent curl exit code from masking logs
+          RESPONSE=$(curl -s -o response.json -w "%{http_code}" -X POST "http://localhost:8000/predict" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "air_temperature": 300.0,
+              "process_temperature": 310.0,
+              "rotational_speed": 1500,
+              "torque": 40.0,
+              "tool_wear": 10
+            }') || RESPONSE="000"
+
+          echo "HTTP Response Status: $RESPONSE"
+          echo "Payload Response:"
+          cat response.json || true
+          echo ""
+
+          # Fail step if response code is not 200 OK
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Prediction test failed!"
+            echo "=== Container Logs ==="
+            docker logs test-api
+            exit 1
+          fi
+
+      - name: Stop and Cleanup Container
+        if: always()
+        run: |
+          docker stop test-api || true
+          docker rm test-api || true

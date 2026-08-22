@@ -3,6 +3,7 @@ kind: Deployment
 metadata:
   name: mlflow
   namespace: ml-training
+  namespace: ml-training
 spec:
   replicas: 1
   selector:

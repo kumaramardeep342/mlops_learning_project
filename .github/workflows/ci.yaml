@@ -2,9 +2,9 @@ name: Continuous Integration Predictive Maintenance
 
 on:
   push:
-    branches: [ main , develop ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main , develop ]
+    branches: [ main, develop ]
 
 jobs:
   test-and-build:
@@ -34,10 +34,6 @@ jobs:
         run: |
           uv run pytest tests/
 
-      # - name: Run Unit Tests
-      #   run: |
-      #     PYTHONPATH=. pytest tests/
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -58,5 +54,47 @@ jobs:
           file: docker/Dockerfile.serve
           tags: mlops-serve:latest
           push: false
+          load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Start Serving Container
+        run: |
+          docker run -d \
+            --name test-api \
+            -p 8000:8000 \
+            -e PORT=8000 \
+            mlops-serve:latest
+
+          # Wait for the FastAPI server to initialize
+          sleep 5
+
+      - name: Test Prediction Endpoint
+        run: |
+          # Execute test request against running container
+          RESPONSE=$(curl -s -o response.json -w "%{http_code}" -X POST "http://localhost:8000/predict" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "air_temperature": 300.0,
+              "process_temperature": 310.0,
+              "rotational_speed": 1500,
+              "torque": 40.0,
+              "tool_wear": 10
+            }')
+
+          echo "HTTP Response Status: $RESPONSE"
+          echo "Payload Response:"
+          cat response.json
+
+          # Fail step if response code is not 200 OK
+          if [ "$RESPONSE" -ne 200 ]; then
+            echo "Prediction test failed!"
+            docker logs test-api
+            exit 1
+          fi
+
+      - name: Stop and Cleanup Container
+        if: always()
+        run: |
+          docker stop test-api || true
+          docker rm test-api || true

@@ -32,7 +32,8 @@ jobs:
           kubectl create namespace ml-training --dry-run=client -o yaml | kubectl apply -f -
           kubectl apply -f k8s/base/ -n ml-training
           kubectl apply -f k8s/services/ -n ml-training
-#         kubectl apply -f k8s/pipeline/ -n ml-training
+          kubectl apply -f k8s/monitoring/ -n ml-training
+#          kubectl apply -f k8s/pipeline/ -n ml-training
 
       - name: Wait for Deployments to become Available
         run: |

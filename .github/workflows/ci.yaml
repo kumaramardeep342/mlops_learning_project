@@ -34,6 +34,28 @@ jobs:
         run: |
           uv run pytest tests/
 
+      - name: Generate Dummy Checkpoint for Tests
+        run: |
+          uv run python -c "
+          from pyspark.sql import SparkSession
+          from pyspark.ml.classification import RandomForestClassifier
+          from pyspark.ml.linalg import Vectors
+          import os
+
+          spark = SparkSession.builder.appName('dummy').getOrCreate()
+          df = spark.createDataFrame([(0, Vectors.dense([0.0, 0.0, 0.0, 0.0, 0.0]))], ['label', 'features'])
+          rf = RandomForestClassifier()
+          model = rf.fit(df)
+          os.makedirs('checkpoints/best_model', exist_ok=True)
+          model.write().overwrite().save('checkpoints/best_model')
+          "
+
+      - name: Run Unit Tests
+        env:
+          PYTHONPATH: .
+        run: |
+          uv run pytest tests/          
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

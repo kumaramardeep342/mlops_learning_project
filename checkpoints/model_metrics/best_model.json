@@ -1,7 +1,7 @@
 {
     "model": "RandomForest",
     "accuracy": 0.9765,
-    "model_path": "models/best_model",
+    "model_path": "checkpoints/best_model",
     "num_trees": 100,
     "max_depth": 10
 }

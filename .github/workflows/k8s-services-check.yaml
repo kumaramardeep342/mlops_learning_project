@@ -20,7 +20,7 @@ jobs:
           minikube-version: 'latest'
           driver: 'docker'
           cpus: 2
-          memory: 4000mb
+          memory: 6000mb
 
       - name: Verify Minikube & kubectl
         run: |
@@ -30,35 +30,36 @@ jobs:
       - name: Deploy Services to Kubernetes
         run: |
           kubectl create namespace ml-training --dry-run=client -o yaml | kubectl apply -f -
-          kubectl apply -f k8s/base/
-          kubectl apply -f k8s/services/
-#         kubectl apply -f k8s/pipeline/
+          kubectl apply -f k8s/base/ -n ml-training
+          kubectl apply -f k8s/services/ -n ml-training
+          kubectl apply -f k8s/monitoring/ -n ml-training
+#          kubectl apply -f k8s/pipeline/ -n ml-training
 
       - name: Wait for Deployments to become Available
         run: |
           echo "Waiting for Airflow..."
-          kubectl rollout status deployment/airflow --timeout=180s
+          kubectl rollout status deployment/airflow -n ml-training --timeout=180s
 
           echo "Waiting for MLflow..."
-          kubectl rollout status deployment/mlflow --timeout=180s
+          kubectl rollout status deployment/mlflow -n ml-training --timeout=180s
 
           echo "Waiting for Zookeeper..."
-          kubectl rollout status deployment/zookeeper --timeout=180s
+          kubectl rollout status deployment/zookeeper -n ml-training --timeout=180s
 
           echo "Waiting for Kafka..."
-          kubectl rollout status deployment/kafka --timeout=180s
+          kubectl rollout status deployment/kafka -n ml-training --timeout=180s
 
           echo "Waiting for Prometheus..."
-          kubectl rollout status deployment/prometheus --timeout=180s
+          kubectl rollout status deployment/prometheus -n ml-training --timeout=180s
 
           echo "Waiting for Grafana..."
-          kubectl rollout status deployment/grafana --timeout=180s
+          kubectl rollout status deployment/grafana -n ml-training --timeout=180s
 
       - name: Verify Pod Status and Services
         if: always()
         run: |
           echo "=== Pods Status ==="
-          kubectl get pods -o wide
+          kubectl get pods -n ml-training -o wide
 
           echo "=== Services Status ==="
-          kubectl get svc
+          kubectl get svc -n ml-training

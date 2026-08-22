@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: training-config
+  namespace: ml-training
+data:
+  training_config.yaml: |
+    data:
+      data_path: /app/data/ai4i2020.csv
+      feature_columns:
+        - Air temperature [K]
+        - Process temperature [K]
+        - Rotational speed [rpm]
+        - Torque [Nm]
+        - Tool wear [min]
+      label_column: Machine failure
+    training:
+      epochs: 10
+      learning_rate: 0.001
+    lstm:
+      sequence_length: 5
+    torch_compile:
+      enabled: false
+    ray:
+      num_trees:
+        - 50
+        - 100
+      max_depth:
+        - 5
+        - 10
+    mlflow:
+      tracking_uri: http://mlflow-service.ml-training.svc.cluster.local:5000
+      experiment_name: predictive_maintenance
+    output:
+      model_dir: /app/checkpoints/best_model
+      metrics_dir: /app/checkpoints/model_metrics

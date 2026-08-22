@@ -230,4 +230,4 @@ outputs/*
 # Ignore contents of logs
 /monitoring/logs/*
 
-models/best_model/*
+checkpoints/best_model/*

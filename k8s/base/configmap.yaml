@@ -5,17 +5,32 @@ metadata:
   namespace: ml-training
 data:
   training_config.yaml: |
-    model:
-      architecture: resnet18
-      num_classes: 10
+    data:
+      data_path: /app/data/ai4i2020.csv
+      feature_columns:
+        - Air temperature [K]
+        - Process temperature [K]
+        - Rotational speed [rpm]
+        - Torque [Nm]
+        - Tool wear [min]
+      label_column: Machine failure
     training:
       epochs: 10
-      batch_size: 64
       learning_rate: 0.001
-      early_stopping_patience: 3
-    data:
-      dataset: cifar10
-      data_dir: /app/data
+    lstm:
+      sequence_length: 5
+    torch_compile:
+      enabled: false
+    ray:
+      num_trees:
+        - 50
+        - 100
+      max_depth:
+        - 5
+        - 10
+    mlflow:
+      tracking_uri: http://mlflow-service.ml-training.svc.cluster.local:5000
+      experiment_name: predictive_maintenance
     output:
-      checkpoint_dir: /app/checkpoints
-      model_name: classifier_v1.pt
+      model_dir: /app/checkpoints/best_model
+      metrics_dir: /app/checkpoints/model_metrics

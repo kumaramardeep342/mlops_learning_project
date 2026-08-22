@@ -12,7 +12,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY pyproject.toml .
 # RUN uv pip install --system .[train]
 # Install CPU-only PyTorch index to skip heavy CUDA wheel downloads
-RUN uv pip install --system --extra-index-url https://download.pytorch.org/whl/cpu .[train]
+RUN uv pip install --system \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    --index-strategy unsafe-best-match \
+    .[train]
 
 # Stage 2: Training runtime
 FROM base AS training

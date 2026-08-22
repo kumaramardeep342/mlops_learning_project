@@ -17,6 +17,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # Free up disk space on GitHub runner host before starting Minikube
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          docker system prune -af
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:

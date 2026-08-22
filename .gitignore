@@ -231,3 +231,6 @@ outputs/*
 /monitoring/logs/*
 
 checkpoints/best_model/*
+
+#Ignore db files
+*.db

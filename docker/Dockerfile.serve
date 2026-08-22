@@ -13,7 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt-get/lists/*
 
 COPY pyproject.toml .
-RUN uv pip install --system .[serve]
+# RUN uv pip install --system .[serve]
+# Install CPU-only PyTorch for serving and clean cache to free disk space
+RUN uv pip install --system \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    --index-strategy unsafe-best-match \
+    .[serve] \
+    && uv cache clean
 
 COPY src/ ./src/
 

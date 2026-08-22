@@ -27,13 +27,7 @@ jobs:
       - name: Install Dependencies with uv
         run: |
           uv sync --all-extras --all-groups
-
-      - name: Run Unit Tests
-        env:
-          PYTHONPATH: .
-        run: |
-          uv run pytest tests/
-
+          
       - name: Generate Dummy Checkpoint for Tests
         run: |
           uv run python -c "

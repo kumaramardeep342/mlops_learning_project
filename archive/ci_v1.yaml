@@ -1,0 +1,124 @@
+name: Continuous Integration Predictive Maintenance
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Free Disk Space on Runner
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo docker image prune --all --force
+          
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies with uv
+        run: |
+          uv sync --all-extras --all-groups
+
+      - name: Generate Dummy Checkpoint for Tests
+        run: |
+          uv run python -c "
+          from pyspark.sql import SparkSession
+          from pyspark.ml.classification import RandomForestClassifier
+          from pyspark.ml.linalg import Vectors
+          import os
+
+          spark = SparkSession.builder.appName('dummy').getOrCreate()
+          df = spark.createDataFrame([(0, Vectors.dense([0.0, 0.0, 0.0, 0.0, 0.0]))], ['label', 'features'])
+          rf = RandomForestClassifier()
+          model = rf.fit(df)
+          os.makedirs('checkpoints/best_model', exist_ok=True)
+          model.write().overwrite().save('checkpoints/best_model')
+          "
+
+      - name: Run Unit Tests
+        env:
+          PYTHONPATH: .
+        run: |
+          uv run pytest tests/          
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Training Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.train
+          tags: mlops-train:latest
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Serving Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.serve
+          tags: mlops-serve:latest
+          push: false
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start Serving Container
+        run: |
+          docker run -d \
+            --name test-api \
+            -p 8000:8000 \
+            -e PORT=8000 \
+            mlops-serve:latest
+
+          # Wait for the FastAPI server to initialize
+          sleep 5
+
+      - name: Test Prediction Endpoint
+        run: |
+          # Execute test request against running container
+          RESPONSE=$(curl -s -o response.json -w "%{http_code}" -X POST "http://localhost:8000/predict" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "air_temperature": 300.0,
+              "process_temperature": 310.0,
+              "rotational_speed": 1500,
+              "torque": 40.0,
+              "tool_wear": 10
+            }')
+
+          echo "HTTP Response Status: $RESPONSE"
+          echo "Payload Response:"
+          cat response.json
+
+          # Fail step if response code is not 200 OK
+          if [ "$RESPONSE" -ne 200 ]; then
+            echo "Prediction test failed!"
+            docker logs test-api
+            exit 1
+          fi
+
+      - name: Stop and Cleanup Container
+        if: always()
+        run: |
+          docker stop test-api || true
+          docker rm test-api || true

@@ -56,16 +56,33 @@ jobs:
           # 1. Create namespace if missing
           kubectl create namespace ml-training --dry-run=client -o yaml | kubectl apply -f -
 
-          # 2. Apply manifests in dependency order
+          # 2. Create imagePullSecret for GHCR access
+          kubectl create secret docker-registry ghcr-secret \
+            --namespace=ml-training \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # 3. Apply manifests in dependency order
           kubectl apply -f k8s/base/ -n ml-training
           kubectl apply -f k8s/services/ -n ml-training
           kubectl apply -f k8s/monitoring/ -n ml-training
 
-          # 3. Update container image in the ml-training namespace
+          # 4. Patch deployment to use ghcr-secret and update image
+          kubectl patch deployment mlflow -n ml-training -p '{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"ghcr-secret"}]}}}}'
           kubectl set image deployment/mlflow mlflow=${{ steps.meta.outputs.tags }} -n ml-training
 
-          # 4. Verify rollout status
-          kubectl rollout status deployment/mlflow -n ml-training --timeout=180s
+          # 5. Verify rollout status with log dump on failure
+          if ! kubectl rollout status deployment/mlflow -n ml-training --timeout=180s; then
+            echo "=== Rollout Failed! Pod Status: ==="
+            kubectl get pods -n ml-training
+            echo "=== Pod Descriptions & Events: ==="
+            kubectl describe pods -l app=mlflow -n ml-training
+            echo "=== Pod Logs: ==="
+            kubectl logs -l app=mlflow -n ml-training --tail=100
+            exit 1
+          fi
 
       - name: Post-Deployment Smoke Test
         run: |

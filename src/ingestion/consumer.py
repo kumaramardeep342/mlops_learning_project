@@ -22,7 +22,11 @@ if __package__ is None or __package__ == "":
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import col, from_json
 from pyspark.sql.types import (
-    StructType, StructField, StringType, DoubleType, IntegerType,
+    StructType,
+    StructField,
+    StringType,
+    DoubleType,
+    IntegerType,
 )
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.classification import RandomForestClassificationModel
@@ -44,46 +48,47 @@ FEATURE_COLS = [
 ]
 
 # matches the raw CSV columns produced by producer.py
-MESSAGE_SCHEMA = StructType([
-    StructField("UDI", IntegerType()),
-    StructField("Product ID", StringType()),
-    StructField("Type", StringType()),
-    StructField("Air temperature [K]", DoubleType()),
-    StructField("Process temperature [K]", DoubleType()),
-    StructField("Rotational speed [rpm]", IntegerType()),
-    StructField("Torque [Nm]", DoubleType()),
-    StructField("Tool wear [min]", IntegerType()),
-    StructField("Machine failure", IntegerType()),
-    StructField("TWF", IntegerType()),
-    StructField("HDF", IntegerType()),
-    StructField("PWF", IntegerType()),
-    StructField("OSF", IntegerType()),
-    StructField("RNF", IntegerType()),
-])
+MESSAGE_SCHEMA = StructType(
+    [
+        StructField("UDI", IntegerType()),
+        StructField("Product ID", StringType()),
+        StructField("Type", StringType()),
+        StructField("Air temperature [K]", DoubleType()),
+        StructField("Process temperature [K]", DoubleType()),
+        StructField("Rotational speed [rpm]", IntegerType()),
+        StructField("Torque [Nm]", DoubleType()),
+        StructField("Tool wear [min]", IntegerType()),
+        StructField("Machine failure", IntegerType()),
+        StructField("TWF", IntegerType()),
+        StructField("HDF", IntegerType()),
+        StructField("PWF", IntegerType()),
+        StructField("OSF", IntegerType()),
+        StructField("RNF", IntegerType()),
+    ]
+)
 
 
 def get_spark_session():
     return (
-        SparkSession.builder
-        .appName("PredictiveMaintenance-StreamingInference")
+        SparkSession.builder.appName("PredictiveMaintenance-StreamingInference")
         .master("local[*]")
-        .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.6")
+        .config(
+            "spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.6"
+        )
         .getOrCreate()
     )
 
 
 def read_kafka_stream(spark: SparkSession) -> DataFrame:
     raw_df = (
-        spark.readStream
-        .format("kafka")
+        spark.readStream.format("kafka")
         .option("kafka.bootstrap.servers", BOOTSTRAP_SERVERS)
         .option("subscribe", TOPIC)
         .option("startingOffsets", "earliest")
         .load()
     )
     parsed_df = (
-        raw_df
-        .selectExpr("CAST(value AS STRING) as json_str")
+        raw_df.selectExpr("CAST(value AS STRING) as json_str")
         .select(from_json(col("json_str"), MESSAGE_SCHEMA).alias("data"))
         .select("data.*")
     )
@@ -102,13 +107,17 @@ def make_batch_processor(model, assembler):
         results = predictions.select("UDI", "prediction", "probability").collect()
 
         failures = [r for r in results if r["prediction"] == 1.0]
-        logger.info(f"[batch {batch_id}] Processed {count} records | "
-                    f"{len(failures)} failures flagged")
+        logger.info(
+            f"[batch {batch_id}] Processed {count} records | "
+            f"{len(failures)} failures flagged"
+        )
 
         for row in failures:
             failure_prob = row["probability"][1]
-            logger.warning(f"⚠️ FAILURE PREDICTED | UDI={row['UDI']} | "
-                            f"probability={failure_prob:.2f}")
+            logger.warning(
+                f"⚠️ FAILURE PREDICTED | UDI={row['UDI']} | "
+                f"probability={failure_prob:.2f}"
+            )
 
     return process_batch
 
@@ -126,8 +135,7 @@ def run_streaming_job():
     batch_processor = make_batch_processor(model, assembler)
 
     query = (
-        stream_df.writeStream
-        .foreachBatch(batch_processor)
+        stream_df.writeStream.foreachBatch(batch_processor)
         .outputMode("update")
         .trigger(processingTime="5 seconds")
         .start()

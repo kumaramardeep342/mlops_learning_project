@@ -22,7 +22,9 @@ from datetime import datetime, timedelta
 # realpath() resolves symlinks (Airflow's DAGs folder often symlinks
 # to the actual project), so this works regardless of who's machine
 # it runs on or where their DAGs folder points to
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", ".."))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..")
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -44,12 +46,14 @@ def _run_preprocessing(**context):
     """Wrapped in a local import so Airflow's DAG parser doesn't need
     your full project environment just to load this file."""
     from src.preprocessing.preprocess import run_preprocessing
+
     run_preprocessing()
 
 
 def _run_kafka_producer(**context):
     _ensure_spark_env()
-    from src.preprocessing.producer import stream_csv
+    from ingestion.producer import stream_csv
+
     stream_csv()
 
 
@@ -68,7 +72,6 @@ with DAG(
     catchup=False,
     tags=["data-engineering", "predictive-maintenance"],
 ) as dag:
-
     preprocess_task = PythonOperator(
         task_id="preprocess_data",
         python_callable=_run_preprocessing,

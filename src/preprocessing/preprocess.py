@@ -82,7 +82,9 @@ def encode_categorical(df: pd.DataFrame) -> pd.DataFrame:
     for col in CATEGORICAL_COLS:
         le = LabelEncoder()
         df[col] = le.fit_transform(df[col])
-        logger.info(f"Encoded '{col}': classes {list(le.classes_)} -> {list(range(len(le.classes_)))}")
+        logger.info(
+            f"Encoded '{col}': classes {list(le.classes_)} -> {list(range(len(le.classes_)))}"
+        )
     return df
 
 
@@ -109,10 +111,14 @@ def split_and_save(df: pd.DataFrame, test_size: float = 0.2, random_state: int =
     train_df.to_csv(train_path, index=False)
     test_df.to_csv(test_path, index=False)
 
-    logger.info(f"Saved train ({train_df.shape[0]} rows, "
-                f"{int(train_df[TARGET_COL].sum())} failures) -> {train_path}")
-    logger.info(f"Saved test ({test_df.shape[0]} rows, "
-                f"{int(test_df[TARGET_COL].sum())} failures) -> {test_path}")
+    logger.info(
+        f"Saved train ({train_df.shape[0]} rows, "
+        f"{int(train_df[TARGET_COL].sum())} failures) -> {train_path}"
+    )
+    logger.info(
+        f"Saved test ({test_df.shape[0]} rows, "
+        f"{int(test_df[TARGET_COL].sum())} failures) -> {test_path}"
+    )
 
     return train_df, test_df
 

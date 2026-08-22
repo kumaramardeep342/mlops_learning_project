@@ -33,17 +33,14 @@ OUTPUT_DIR = "data/features"
 
 def get_spark_session():
     return (
-        SparkSession.builder
-        .appName("PredictiveMaintenance-FeatureEngineering")
+        SparkSession.builder.appName("PredictiveMaintenance-FeatureEngineering")
         .master("local[*]")
         .getOrCreate()
     )
 
 
 def engineer_features(df):
-    df = df.withColumn(
-        "power", col("`Torque [Nm]`") * col("`Rotational speed [rpm]`")
-    )
+    df = df.withColumn("power", col("`Torque [Nm]`") * col("`Rotational speed [rpm]`"))
     df = df.withColumn(
         "temp_diff", col("`Process temperature [K]`") - col("`Air temperature [K]`")
     )

@@ -51,4 +51,4 @@ output:
 
   model_dir: models/best_model
 
-  metrics_dir: model_metrics
+  metrics_dir: outputs/model_metrics

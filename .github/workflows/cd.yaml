@@ -60,7 +60,7 @@ jobs:
           minikube-version: 'latest'
           driver: 'docker'
           cpus: 2
-          memory: 8192mb
+          memory: 6000mb
           disk-size: 20000mb
 
       - name: Deploy to Kubernetes

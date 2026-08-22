@@ -2,9 +2,9 @@ name: Continuous Deployment Predictive Maintenance
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
   build-and-deploy:
@@ -24,14 +24,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set Lowercase Repository Name
+        run: |
+          echo "IMAGE_TAG=ghcr.io/${{ github.repository_owner }}/mlops_learning_project:latest" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: docker/Dockerfile.serve
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: ${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Setup Minikube (For CI/Testing)
+      - name: Setup Minikube (For Continuous Deployment)
         uses: medyagh/setup-minikube@master
         with:
           minikube-version: 'latest'
@@ -47,25 +57,39 @@ jobs:
           kubectl apply -f k8s/monitoring/ -n ml-training
 
           # 3. Update container image in the ml-training namespace
-          kubectl set image deployment/mlflow mlflow=ghcr.io/${{ github.repository }}:latest -n ml-training
+          kubectl set image deployment/mlflow mlflow=${{ env.IMAGE_TAG }} -n ml-training
 
-          # 4. Verify rollout
+          # 4. Verify rollout status
           kubectl rollout status deployment/mlflow -n ml-training --timeout=180s
-      
+
       - name: Post-Deployment Smoke Test
         run: |
-          # Forward host port to the deployment inside Kubernetes
+          # Start port-forwarding in background
           kubectl port-forward svc/mlflow-service 8000:5000 -n ml-training &
           PID=$!
-          sleep 5
 
-          # Test endpoint availability
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/)
+          # Wait for port-forward connection to be established
+          echo "Waiting for port-forward to become active..."
+          RESPONSE="000"
+          for i in {1..15}; do
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/ || echo "000")
+            if [ "$RESPONSE" = "200" ]; then
+              break
+            fi
+            sleep 2
+          done
 
-          # Kill port-forward process
-          kill $PID
+          echo "HTTP Response Code: $RESPONSE"
 
-          if [ "$RESPONSE" -ne 200 ]; then
+          # Kill background port-forward
+          kill $PID || true
+
+          # Evaluate response
+          if [ "$RESPONSE" != "200" ]; then
             echo "Deployment smoke test failed!"
+            echo "=== Pod Status ==="
+            kubectl get pods -n ml-training
+            echo "=== Pod Logs ==="
+            kubectl logs -l app=mlflow -n ml-training --tail=50
             exit 1
           fi

@@ -16,6 +16,9 @@ RUN apt-get update && \
 # ------------------------------------------------------------
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Ensure Python treats /app as a root import module
+ENV PYTHONPATH=/app
+
 WORKDIR /app
 
 # ------------------------------------------------------------

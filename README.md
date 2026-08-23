@@ -1,10 +1,12 @@
 # Team 54 : Predictive Maintenance of Industrial Milling Machine
 
+<img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">
+
 ``` bash
 # repo owner details
-GitHub ID : sjagga001sj , NusrathGit , dhananjAI-coder , kavyasreek9 ,  kumaramardeep342
-name :      Sagar Jagga , Nusrath Fatima , Dhananjai Singh , Kavyasree, Amardeep Kumar
-roll_no :   DA25M526    , DA25M523       , DA25M510       , DA25M506 ,  DA25M502
+GitHub ID :    kumaramardeep342 ( Global Owner) , kavyasreek9 , dhananjAI-coder , NusrathGit , sjagga001sj (Global Vice Owner)
+name :         Amardeep Kumar , Kavyasree Madhuri Badimela , Dhananjai Singh ,Nusrath Fatima , Sagar Jagga 
+roll_no :      DA25M502 , DA25M506 , DA25M510  ,  DA25M523     ,   DA25M526    
 
 ```
 
@@ -14,7 +16,7 @@ This repository implements an end-to-end, modular MLOps platform for predictive 
 
 The codebase structure, the platform is designed with clear modular boundaries between components: data ingestion, preprocessing, feature engineering, model training, deployment, and monitoring — enabling each stage to be developed, tested, and executed independently while remaining part of a unified, version-controlled repository.
 
-### 🎓 Learning Objectives
+### Objectives
 1. Structure an ML project repository with proper Git practices (branching, gitlfs , PRs, .gitignore , github actions , issues ,  secrets and project management)
 2. End to End Data Engineering Pipeline
 3. Write multi-stage Dockerfiles optimized for ML workloads
@@ -37,79 +39,96 @@ The codebase structure, the platform is designed with clear modular boundaries b
 | Services Stack | Airflow, MLflow, Kafka, Prometheus, Grafana |
 
 ## System architecture
-                            GitHub
+# low level design
+                              GitHub
+                                |
+                                | Push / PR
+                                v
+                     +-----------------------+
+                     |   GitHub Actions      |
+                     |        CI/CD          |
+                     +-----------+-----------+
+                                 |
+                                 | Trigger / Deploy
+                                 v
+                     +-----------------------+
+                     |       Airflow         |
+                     |  Workflow Orchestration|
+                     +-----------+-----------+
+                                 |
+              +------------------+------------------+
+              |                  |                  |
+              v                  v                  v
+       Data Validation      Spark ETL        Feature Engineering
+              |                  |                  |
+              +------------------+------------------+
+                                 |
+                                 v
+                        Processed Dataset
+                                 |
+                                 v
+                         Model Training
+                                 |
+              +------------------+------------------+
+              |                  |                  |
+              v                  v                  v
+       Random Forest           MLP                LSTM
+        Spark ML + Ray       PyTorch            PyTorch
+                            torch.compile       torch.compile
+              |                  |                  |
+              +------------------+------------------+
+                                 |
+                                 v
+                    +-------------------------+
+                    |        MLflow            |
+                    | Experiment Tracking      |
+                    | Metrics → SQLite        |
+                    | Model Artifacts          |
+                    +-----------+-------------+
                                 |
                                 v
-                    +-----------------------+
-                    | GitHub Actions CI/CD  |
-                    +-----------+-----------+
+                       Model Registry
                                 |
                                 v
-    +-----------------------------------------------------------+
-    |                       Apache Airflow                      |
-    +-----------------------------------------------------------+
-            |                  |                     |
-            v                  v                     v
+                    +-------------------------+
+                    |     FastAPI Server      |
+                    |                         |
+                    | /health                 |
+                    | /predict                |
+                    | /metrics                |
+                    +-----------+-------------+
+                                |
+                                v
+                  +-----------------------------+
+                  | Docker + Kubernetes         |
+                  |          Minikube           |
+                  +-------------+---------------+
+                                |
+                                v
+                    +-------------------------+
+                    | Prometheus + Grafana     |
+                    |                         |
+                    | • Request count         |
+                    | • Latency               |
+                    | • Errors                |
+                    | • Model metrics         |
+                    | • System health         |
+                    +-----------+-------------+
+                                |
+                                v
+                           Monitoring
+                                |
+                                |
+                                +------------------+
+                                                   |
+                                                   v
+                                           Feedback / Retraining
+                                                   |
+                                                   +----> Airflow
 
-    Data Validation   Spark ETL Pipeline   Feature Engineering
+## System Architecture Diagram
 
-            |                  |                     |
-            +------------------+---------------------+
-                            |
-                            v
-
-                    Processed Dataset
-
-                            |
-                            v
-
-                    Model Training
-
-                            |
-            +----------------+---------------+
-            |                                |
-            v                                v
-
-        Random Forest                    XGBoost
-
-            |                                |
-            +----------------+---------------+
-                            |
-                            v
-
-                        MLflow Server
-
-                            |
-                            v
-
-                        DVC Repository
-
-                            |
-                            v
-
-                        Model Registry
-
-                            |
-                            v
-
-                        FastAPI Server
-
-                            |
-                        Docker Container
-
-                            |
-                            v
-
-                        Prometheus Server
-
-                            |
-                            v
-
-                        Monitoring
-
-## System architecture diagram
-
-<img src="project_documents/assets/AI4CPS MLOps Project.png" width="800">
+<img src="project_documents/architecture/v1/System Architecture.png" width="800">
 
 ## Setup and installation instructions
 ###  🚀 Quick Start
@@ -171,9 +190,6 @@ kubectl scale deployment airflow mlflow kafka zookeeper --replicas=0
 # Turn ON monitoring & serving
 kubectl scale deployment prometheus grafana --replicas=1
 
-# run training pipeline
-kubectl apply -f k8s/pipeline/
-
 # Check status of your Pods and Services
 kubectl get pods
 kubectl get svc
@@ -215,10 +231,13 @@ docker build -f docker/Dockerfile.serve -t mlops-serve:v1 .
 
 ```bash 
 # Demonstrate the full workflow running on your Kubernetes cluster:
-# 1 Apply all manifests:
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/training-job.yaml
+# run training pipeline at once 
+kubectl apply -f k8s/pipeline/
+
+# 1 Apply all manifests , skip if you have already ran k8s/base
+kubectl apply -f k8s/base/namespace.yaml
+kubectl apply -f k8s/base/configmap.yaml
+kubectl apply -f k8s/pipeline/training-job.yaml
 
 # Wait for Training to Finish...
 # Watch job progress until COMPLETIONS shows 1/1
@@ -230,10 +249,10 @@ kubectl logs -f job/mlops-train-job -n ml-training
 kubectl get pods -n ml-training
 # once succesfully finishes then move to setp 2 below.
 
-# 2 Once training completes, deploy the serving layer:
-kubectl apply -f k8s/serving-deployment.yaml
-kubectl apply -f k8s/serving-service.yaml
-kubectl apply -f k8s/hpa.yaml
+# 2 Once training completes, deploy the serving layer , skip you have already ran k8s/pipeline/
+kubectl apply -f k8s/pipeline/serving-deployment.yaml
+kubectl apply -f k8s/pipeline/serving-service.yaml
+kubectl apply -f k8s/pipeline/hpa.yaml
 
 # 3 Verify pods are running and healthy:
 kubectl get pods -n ml-training
@@ -308,177 +327,112 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -
 ```plaintext
 predictive-maintenance-mlops/
 │
-├── .github/            
+├── .github/  
+│   └── ISSUE_TEMPLATE/          
 │   └── workflows/
-│       ├── ci.yml
-│       └── cd.yml
+│   │    ├── ci.yml
+│   │    └── cd.yml
+├── ── CODEOWNERS
+├── ── CODEOWNERS
 │
 ├── airflow/
 │   ├── dags/
-│   │   ├── data_ingestion_dag.py
-│   │   ├── preprocessing_dag.py
-│   │   ├── training_dag.py
-│   │   └── deployment_dag.py
-│   │
-│   ├── plugins/
-│   │
-│   └── logs/
-│
+│   │   ├── data_ENGINEERING_dag.py
 ├── data/
 │   ├── raw/
-│   │   └── maintenance.csv
-│   │
-│   ├── interim/
-│   │   └── cleaned_data.parquet
+│   │   └── ai4i2020.csv
 │   │
 │   ├── processed/
-│   │   └── feature_engineered.parquet
-│   │
-│   └── validation/
-│       └── schema.json
+│        └── data_features.csv
 │
 ├── spark_jobs/
-│   ├── data_cleaning.py
-│   ├── feature_engineering.py
-│   ├── imbalance_handling.py
-│   └── spark_utils.py
+│   ├── feature_engineering_job.py
 │
 ├── notebooks/                 
-│   ├── EDA.ipynb
-│   ├── Feature_Analysis.ipynb
-│   └── Model_Experiments.ipynb
+│   ├── Predictive Maintenance for Industrial Milling Machines.ipynb
 │
 ├── src/
 │   │
 │   ├── ingestion/
-│   │   ├── ingest.py
-│   │   └── validate_schema.py
+│   │   ├── consumer.py
+│   │   └── prodcuer.py
 │   │
 │   ├── preprocessing/
-│   │   ├── clean_data.py
-│   │   ├── handle_missing.py
-│   │   ├── scaling.py
-│   │   └── encoding.py
-│   │
-│   ├── feature_engineering/
-│   │   ├── feature_generator.py
-│   │   └── feature_selector.py
+│   │   ├── dataset.py
+│   │   ├── preprocess.py
 │   │
 │   ├── training/
-│   │   ├── train_rf.py
-│   │   ├── train_xgb.py
-│   │   ├── evaluate.py
-│   │   └── hyperparameter_tuning.py
+│   │   ├── model.py
+│   │   ├── train.py
 │   │
 │   ├── inference/
-│   │   ├── predictor.py
-│   │   └── model_loader.py
+│   │   ├── serve.py
 │   │
-│   ├── monitoring/
-│   │   ├── drift_detector.py
-│   │   ├── logging_service.py
-│   │   └── metrics.py
-│   │
-│   └── utils/              # done
+│   └── utils/              
 │       ├── logger.py
-│       ├── config.py
-│       └── helper.py
 │       └── setup_project_strcuture.py
 │
-├── models/                 # done     
-│   ├── random_forest/
-│   │   └── model.pkl
-│   │
-│   ├── xgboost/
-│   │   └── model.pkl
-│   │
-│   └── production/
-│       └── current_model.pkl
+├── checkpoints/                     
+│   ├── best_model/
+│   ├── lstm.pt
+│   │── mlp.pt
+│   └── model_metrics/
 │
-├── mlflow/             
-│   ├── artifacts/
-│   └── mlruns/
+├── mlflow.db             
 │
-├── dvc/
-│   ├── data.dvc
-│   ├── model.dvc
-│   └── dvc.yaml
-│
-├── app/
-│   ├── app.py
-│   ├── schemas.py
-│   ├── routes.py
-│   ├── middleware.py
-│   └── requirements.txt
+├── .dvc/
 │
 ├── monitoring/            
-│   ├── prometheus/
-│   │   └── prometheus.yml
-│   │
-│   ├── dashboards/
-│   │   └── machine_failure_dashboard.json
-│   │
 │   └── logs/
 │       └── application.log
 │
 ├── tests/                        
-│   ├── test_ingestion.py
-│   ├── test_preprocessing.py
-│   ├── test_training.py
-│   ├── test_api.py
-│   └── test_monitoring.py
+│   ├── integration/
+│   ├── unit/
 │
 ├── docker/                
 │   ├── Dockerfile
 │   ├── docker-compose.yml
+│   └── Dockerfile.train
+│   └── Dockerfile.serve
 │   └── .dockerignore
 │
 ├── k8s/ 
 │
 ├── configs/               
-│   ├── airflow_config.yaml
+│   ├── grafana_configmap.yaml
 │   ├── spark_config.yaml
-│   ├── model_config.yaml
-│   └── deployment_config.yaml
+│   ├── training_config.yaml
 │
 ├── project_documents/      
-│   ├── architecture/
+│   ├── architecture/v1/
 │   │   ├── HLD.png
 │   │   ├── LLD.png
 │   │   └── System_Architecture.png
 │   │
-│   ├── model_metrics/
-│   │   ├── confusion_matrix.png
-│   │   ├── roc_curve.png
-│   │   └── feature_importance.png
-│   │
-│   └── project_report.pdf
-│
-├── scripts/
-│   ├── run_pipeline.sh
-│   ├── train_model.sh
-│   ├── deploy.sh
-│   └── monitor.sh
-│
-├── .env                    
+│   ├── assets/
+│   ├── guides/
+│   └── reports/
+│   └── setup/                  
 ├── .gitignore
+├── .dvcignore
+├── .gitattributes
 ├── README.md
-├── requirements.txt
-├── setup.py
-└── Makefile
+├── pyproject.toml
+├── uv.lock
+├── requirements/
 ```
 
 ### Kubernetes Strcuture 
 ```plaintext
 configs/
-├── airflow_config.yaml
+├── grafana_configmap.yaml
 ├── spark_config.yaml
 └── training_config.yaml
 
 k8s/
 ├── base/
 │   ├── configmap.yaml
-│   ├── grafana-configmap.yaml
 │   ├── kafka-configmap.yaml
 │   ├── mlflow-configmap.yaml
 │   ├── namespace.yaml
@@ -488,17 +442,18 @@ k8s/
 │   ├── serving-deployment.yaml
 │   ├── serving-service.yaml
 │   └── training-job.yaml
+├── monitoring/
+│   ├── grafana.yaml.yaml
 └── services/
     ├── airflow-deployment.yaml
     ├── airflow-service.yaml
-    ├── grafana-deployment.yaml
-    ├── grafana-service.yaml
     ├── kafka-deployment.yaml
     ├── kafka-service.yaml
     ├── mlflow-deployment.yaml
     ├── mlflow-service.yaml
     ├── prometheus-deployment.yaml
     └── prometheus-service.yaml
+    └── pvc.yaml
 ```
 ### Dependencies
 <img src="project_documents/setup/dependency strcuture.png" width="800">

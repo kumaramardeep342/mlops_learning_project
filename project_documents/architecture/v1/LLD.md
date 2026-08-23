@@ -1,70 +1,86 @@
 # low level design
                               GitHub
-                                    |
-                                    v
-                        +-----------------------+
-                        | GitHub Actions CI/CD  |
-                        +-----------+-----------+
-                                    |
-                                    v
-      +-----------------------------------------------------------+
-      |                       Apache Airflow                      |
-      +-----------------------------------------------------------+
-            |                  |                     |
-            v                  v                     v
-
-      Data Validation   Spark ETL Pipeline   Feature Engineering
-
-            |                  |                     |
-            +------------------+---------------------+
-                              |
-                              v
-
-                  Processed Dataset
-
-                              |
-                              v
-
-                        Model Training
-
-                              |
-            +----------------+---------------+
-            |                                |
-            v                                v
-
-      Random Forest                    XGBoost
-
-            |                                |
-            +----------------+---------------+
-                              |
-                              v
-
-                        MLflow Server
-
-                              |
-                              v
-
-                        DVC Repository
-
-                              |
-                              v
-
-                        Model Registry
-
-                              |
-                              v
-
-                        FastAPI Server
-
-                              |
-                        Docker Container
-
-                              |
-                              v
-
-                        Prometheus Server
-
-                              |
-                              v
-
-                        Monitoring
+                                |
+                                | Push / PR
+                                v
+                     +-----------------------+
+                     |   GitHub Actions      |
+                     |        CI/CD          |
+                     +-----------+-----------+
+                                 |
+                                 | Trigger / Deploy
+                                 v
+                     +-----------------------+
+                     |       Airflow         |
+                     |  Workflow Orchestration|
+                     +-----------+-----------+
+                                 |
+              +------------------+------------------+
+              |                  |                  |
+              v                  v                  v
+       Data Validation      Spark ETL        Feature Engineering
+              |                  |                  |
+              +------------------+------------------+
+                                 |
+                                 v
+                        Processed Dataset
+                                 |
+                                 v
+                         Model Training
+                                 |
+              +------------------+------------------+
+              |                  |                  |
+              v                  v                  v
+       Random Forest           MLP                LSTM
+        Spark ML + Ray       PyTorch            PyTorch
+                            torch.compile       torch.compile
+              |                  |                  |
+              +------------------+------------------+
+                                 |
+                                 v
+                    +-------------------------+
+                    |        MLflow            |
+                    | Experiment Tracking      |
+                    | Metrics → SQLite        |
+                    | Model Artifacts          |
+                    +-----------+-------------+
+                                |
+                                v
+                       Model Registry
+                                |
+                                v
+                    +-------------------------+
+                    |     FastAPI Server      |
+                    |                         |
+                    | /health                 |
+                    | /predict                |
+                    | /metrics                |
+                    +-----------+-------------+
+                                |
+                                v
+                  +-----------------------------+
+                  | Docker + Kubernetes         |
+                  |          Minikube           |
+                  +-------------+---------------+
+                                |
+                                v
+                    +-------------------------+
+                    | Prometheus + Grafana     |
+                    |                         |
+                    | • Request count         |
+                    | • Latency               |
+                    | • Errors                |
+                    | • Model metrics         |
+                    | • System health         |
+                    +-----------+-------------+
+                                |
+                                v
+                           Monitoring
+                                |
+                                |
+                                +------------------+
+                                                   |
+                                                   v
+                                           Feedback / Retraining
+                                                   |
+                                                   +----> Airflow

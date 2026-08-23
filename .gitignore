@@ -234,3 +234,6 @@ checkpoints/best_model/*
 
 #Ignore db files
 *.db
+
+#Docker environment
+docker/.env

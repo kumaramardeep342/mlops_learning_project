@@ -4,7 +4,7 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def get_dataset(data_path="data/raw/ai4i2020.csv"):
+def get_dataset(data_path="data/processed/data_features.csv"):
     try:
         df = pd.read_csv(data_path)
         logger.info(f"Dataset loaded successfully from {data_path}")

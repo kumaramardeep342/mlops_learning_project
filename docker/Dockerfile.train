@@ -1,7 +1,19 @@
-# Stage 1: Base image with dependencies using uv
-FROM python:3.12-slim AS base
+# ============================================================
+# Stage 1: Base image with Python, Java, uv and dependencies
+# ============================================================
+FROM python:3.12-slim-bookworm AS base
 
-# Install uv binary from official image
+# ------------------------------------------------------------
+# Install Java 17
+# ------------------------------------------------------------
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        openjdk-17-jre-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+# ------------------------------------------------------------
+# Install uv
+# ------------------------------------------------------------
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Ensure Python treats /app as a root import module
@@ -9,18 +21,32 @@ ENV PYTHONPATH=/app
 
 WORKDIR /app
 
+# ------------------------------------------------------------
+# Environment
+# ------------------------------------------------------------
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
+    PATH=/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH
 
+# ------------------------------------------------------------
+# Copy dependency definition
+# ------------------------------------------------------------
 COPY pyproject.toml .
-# RUN uv pip install --system .[train]
-# Install CPU-only PyTorch index to skip heavy CUDA wheel downloads
+
+# ------------------------------------------------------------
+# Install training dependencies
+# ------------------------------------------------------------
 RUN uv pip install --system \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     --index-strategy unsafe-best-match \
     .[train]
 
+
+# ============================================================
 # Stage 2: Training runtime
+# ============================================================
 FROM base AS training
 
 WORKDIR /app
@@ -28,4 +54,4 @@ WORKDIR /app
 COPY src/ ./src/
 COPY configs/ ./configs/
 
-ENTRYPOINT ["python", "src/training/train.py"]
+ENTRYPOINT ["python", "-m", "src.training.train"]

@@ -111,3 +111,7 @@ kubectl delete pod mlflow-697784bf8b-bgz44
 kubectl rollout restart deployment/mlflow
 # delete the deployment
 kubectl delete deployment mlflow
+# Delete the stuck job
+kubectl delete job mlops-train-job -n ml-training
+# Verify Prometheus and Grafana Status
+kubectl get pods,svc -n ml-training | grep -E "prometheus|grafana"

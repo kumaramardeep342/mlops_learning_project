@@ -4,6 +4,9 @@ FROM python:3.12-slim AS base
 # Install uv binary from official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+# Ensure Python treats /app as a root import module
+ENV PYTHONPATH=/app
+
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

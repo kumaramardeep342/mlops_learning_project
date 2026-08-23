@@ -3,11 +3,16 @@ version: "3.9"
 services:
 
   airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: apache/airflow:3.0.2
     container_name: airflow
 
     ports:
       - "8080:8080"
+
+    user: "${AIRFLOW_UID:-50000}:0"
 
     environment:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
@@ -16,6 +21,7 @@ services:
 
     volumes:
       - ../airflow/dags:/opt/airflow/dags
+      - ..:/opt/airflow/project
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0

@@ -65,9 +65,9 @@ docker build -f docker/Dockerfile.serve -t mlops-serve:v1 .
 ```bash 
 # Demonstrate the full workflow running on your Kubernetes cluster:
 # 1 Apply all manifests:
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/training-job.yaml
+kubectl apply -f k8s/namespace.yaml -n ml-training
+kubectl apply -f k8s/configmap.yaml -n ml-training
+kubectl apply -f k8s/training-job.yaml -n ml-training
 
 # Wait for Training to Finish...
 # Watch job progress until COMPLETIONS shows 1/1
@@ -80,9 +80,9 @@ kubectl get pods -n ml-training
 # once succesfully finishes then move to setp 2 below.
 
 # 2 Once training completes, deploy the serving layer:
-kubectl apply -f k8s/serving-deployment.yaml
-kubectl apply -f k8s/serving-service.yaml
-kubectl apply -f k8s/hpa.yaml
+kubectl apply -f k8s/serving-deployment.yaml -n ml-training
+kubectl apply -f k8s/serving-service.yaml -n ml-training
+kubectl apply -f k8s/hpa.yaml -n ml-training
 
 # 3 Verify pods are running and healthy:
 kubectl get pods -n ml-training
@@ -115,3 +115,5 @@ kubectl delete deployment mlflow
 kubectl delete job mlops-train-job -n ml-training
 # Verify Prometheus and Grafana Status
 kubectl get pods,svc -n ml-training | grep -E "prometheus|grafana"
+# Check Images in Minikube
+eval $(minikube docker-env) && docker images

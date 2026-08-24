@@ -164,6 +164,45 @@ curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -
 ```
 
 ### Kubernetes minikube services
+``` bash
+# setup spark in minikube
+# 1. Point shell to Minikube's Docker daemon
+minikube start --driver=docker  # start minikube with docker
+minikube status # check status
+eval $(minikube docker-env)
+
+# 2. Build image using the specific Dockerfile path
+docker build -f docker/Dockerfile -t custom-airflow-spark:latest .
+
+# 3. Apply updated deployment and restart Airflow
+kubectl apply -f airflow-deployment.yaml -n ml-training
+kubectl rollout restart deployment/airflow
+
+# 4. Stream logs to verify startup
+kubectl logs -f deployment/airflow
+
+# pointing the image to latest airflow images
+# 1. Update deployment image to custom-airflow-spark:latest
+kubectl set image deployment/airflow airflow=custom-airflow-spark:latest -n ml-training
+
+# 2. Set imagePullPolicy to Never so Minikube doesn't search Docker Hub
+kubectl patch deployment airflow -n ml-training -p '{"spec":{"template":{"spec":{"containers":[{"name":"airflow","imagePullPolicy":"Never"}]}}}}'
+
+# 3. Force restart the deployment to terminate the old pod
+kubectl rollout restart deployment/airflow -n ml-training
+
+# verify the changes applied
+# 1. Confirm a NEW pod is running (AGE should be a few seconds)
+kubectl get pods -n ml-training -l app=airflow
+
+# 2. Test Java version
+kubectl exec -it deployment/airflow -n ml-training -- java -version
+
+# 3. Test PySpark version
+kubectl exec -it deployment/airflow -n ml-training -- python3 -c "import pyspark; print(pyspark.__version__)"
+
+```
+
 ```bash
 # work with minikube
 
@@ -172,11 +211,18 @@ minikube start --driver=docker  # start minikube with docker
 minikube status # check status
 
 # Apply all deployment files
-kubectl apply -f k8s/base/
+kubectl apply -f k8s/base/ -n ml-training
 
 # full pipleline , not recomended due to high memory usage and system capacity below is recommened
-kubectl apply -f k8s/services/
-kubectl apply -f k8s/monitoring/grafana.yaml
+kubectl apply -f k8s/services/ -n ml-training 
+kubectl apply -f k8s/monitoring/grafana.yaml -n ml-training
+
+# issues comes like 
+# The Service "prometheus-service" is invalid: spec.ports[0].nodePort: Invalid value: 30090: provided port is already allocated
+# 1. Delete the conflicting service from the default namespace
+kubectl delete service prometheus-service -n default
+# 2. Apply the service to the ml-training namespace
+kubectl apply -f k8s/services/prometheus-service.yaml -n ml-training
 
 # during training phase
 # Turn OFF monitoring
@@ -186,13 +232,13 @@ kubectl scale deployment airflow mlflow kafka zookeeper --replicas=1
 
 # suring inference phase
 # Turn OFF training & orchestration
-kubectl scale deployment airflow mlflow kafka zookeeper --replicas=0
+kubectl scale deployment airflow mlflow kafka zookeeper --replicas=0 -n ml-training
 # Turn ON monitoring & serving
-kubectl scale deployment prometheus grafana --replicas=1
+kubectl scale deployment prometheus grafana --replicas=1 -n ml-training
 
 # Check status of your Pods and Services
-kubectl get pods
-kubectl get svc
+kubectl get pods -n ml-training
+kubectl get svc -n ml-training
 
 # Access UI services on your host machine
 # run the following commands in separate terminal windows to get the local URLs:
@@ -217,7 +263,7 @@ minikube service grafana-service --url
 ## API usage instructions
 ### Kubernetes Training Job + Kubernetes Model Serving +  End-to-End Validation
 
-```bash 
+``` bash 
 # 1. Start Minikube , don't run in python env/project path , run in nomral WSL , once minikube started execute the command from step 2 from  python env/project path  becuase it need Dockerfile.train and Dockerfile.serve to rebuild the images.
 minikube start
 
@@ -227,17 +273,53 @@ eval $(minikube -p minikube docker-env)
 # 3. Rebuild your Docker images inside Minikube's Docker daemon
 docker build -f docker/Dockerfile.train -t mlops-train:v1 .
 docker build -f docker/Dockerfile.serve -t mlops-serve:v1 .
+
+# 2. Rebuild training image with no-cache to force config update
+docker build --no-cache -f docker/Dockerfile.train -t mlops-train:v1 .
+docker build --no-cache -f docker/Dockerfile.serve -t mlops-serve:v1 .
+
+```
+
+```bash
+# 1. Run a temporary helper container mounting mlops-pvc as root
+kubectl run pvc-fixer --image=alpine --restart=Never -n ml-training \
+  --overrides='{
+    "spec": {
+      "containers": [{
+        "name": "pvc-fixer",
+        "image": "alpine",
+        "command": ["sleep", "3600"],
+        "securityContext": {"runAsUser": 0},
+        "volumeMounts": [{"name": "storage", "mountPath": "/app/data"}]
+      }],
+      "volumes": [{"name": "storage", "persistentVolumeClaim": {"claimName": "mlops-pvc"}}]
+    }
+  }'
+
+# 2. Wait until the helper pod is running
+kubectl wait --for=condition=Ready pod/pvc-fixer -n ml-training --timeout=30s
+
+# 3. Create directory and adjust permissions
+kubectl exec -n ml-training pvc-fixer -- mkdir -p /app/data/processed
+kubectl exec -n ml-training pvc-fixer -- chmod -R 777 /app/data
+
+# 4. Copy data_features.csv into the PVC
+kubectl cp data/processed/data_features.csv ml-training/pvc-fixer:/app/data/processed/data_features.csv
+
+# 5. Clean up the helper pod
+kubectl delete pod pvc-fixer -n ml-training
+
 ```
 
 ```bash 
 # Demonstrate the full workflow running on your Kubernetes cluster:
 # run training pipeline at once 
-kubectl apply -f k8s/pipeline/
+kubectl apply -f k8s/pipeline/ -n ml-training
 
 # 1 Apply all manifests , skip if you have already ran k8s/base
-kubectl apply -f k8s/base/namespace.yaml
-kubectl apply -f k8s/base/configmap.yaml
-kubectl apply -f k8s/pipeline/training-job.yaml
+kubectl apply -f k8s/base/namespace.yaml -n ml-training
+kubectl apply -f k8s/base/configmap.yaml -n ml-training
+kubectl apply -f k8s/pipeline/training-job.yaml -n ml-training
 
 # Wait for Training to Finish...
 # Watch job progress until COMPLETIONS shows 1/1
@@ -250,9 +332,9 @@ kubectl get pods -n ml-training
 # once succesfully finishes then move to setp 2 below.
 
 # 2 Once training completes, deploy the serving layer , skip you have already ran k8s/pipeline/
-kubectl apply -f k8s/pipeline/serving-deployment.yaml
-kubectl apply -f k8s/pipeline/serving-service.yaml
-kubectl apply -f k8s/pipeline/hpa.yaml
+kubectl apply -f k8s/pipeline/serving-deployment.yaml -n ml-training
+kubectl apply -f k8s/pipeline/serving-service.yaml -n ml-training
+kubectl apply -f k8s/pipeline/hpa.yaml -n ml-training
 
 # 3 Verify pods are running and healthy:
 kubectl get pods -n ml-training
@@ -271,6 +353,33 @@ kubectl port-forward svc/model-serving 8081:80 -n ml-training
 curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d '{"air_temperature":300.0,"process_temperature":310.0,"rotational_speed":1500,"torque":40.0,"tool_wear":100}'
 ```
 
+``` bash
+# get the grafana password
+kubectl exec -it deployment/grafana -n ml-training -- env | grep -i admin
+# Model Serving API
+kubectl port-forward svc/model-serving 8080:80 -n ml-training
+# Grafana Dashboard
+kubectl port-forward svc/grafana-service 3000:3000 -n ml-training
+# or,
+minikube service grafana-service --url
+# Prometheus UI
+minikube service prometheus-service --url
+# or,
+kubectl port-forward svc/prometheus-service 9090:9090 -n ml-training
+# Total predictions served
+http_requests_total{handler="/predict"}
+# Prediction request rate (per second over 5 min):
+rate(http_requests_total{handler="/predict"}[5m])
+# Average prediction duration (seconds)
+rate(http_request_duration_seconds_sum{handler="/predict"}[5m]) / rate(http_request_duration_seconds_count{handler="/predict"}[5m])
+# check metrics in terminal
+curl http://localhost:8080/metrics
+# to monitor 
+for i in {1..20}; do   curl -s -X POST http://localhost:8080/predict     -H "Content-Type: appli
+cation/json"     -d '{"air_temperature": 298.1, "process_temperature": 308.6, "rotational_speed": 1500, "torque": 40.0, "too
+l_wear": 0}' > /dev/null;   echo "Request $i sent";   sleep 1; done
+
+
 ## Docker execution commands
 ### Docker Run
 ```bash
@@ -281,6 +390,7 @@ docker logs airflow # check the logs of docker
 ```
 
 ### Exposed Endpoints
+use `docker log` to get the Airflow password.
 ```pliantext
 | Service    | URL                                            | Login Detail                |
 | ---------- | ---------------------------------------------- | --------------------------- |
@@ -439,6 +549,7 @@ k8s/
 │   └── prometheus-configmap.yaml
 ├── pipeline/
 │   ├── hpa.yaml
+│   ├── prometheus-rbac.yaml
 │   ├── serving-deployment.yaml
 │   ├── serving-service.yaml
 │   └── training-job.yaml

@@ -6,22 +6,19 @@ Loads the automatically selected best model.
 
 import json
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 import torch
 from fastapi import FastAPI
 from pydantic import BaseModel
-from pyspark.ml.classification import RandomForestClassificationModel
-from pyspark.ml.feature import VectorAssembler
-from pyspark.sql import SparkSession
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from src.training.model import MLP, LSTMModel
 
 # ============================================================
-# Configuration (Dynamic Path Resolution)
+# Configuration & Globals
 # ============================================================
 
-# Read metrics directory from environment variable or fall back to default local paths
 metrics_dir = os.getenv("METRICS_DIR", "/app/checkpoints/model_metrics")
 metrics_file = Path(metrics_dir) / "best_model.json"
 
@@ -34,17 +31,69 @@ with open(metrics_file) as f:
 MODEL_TYPE = best["model"]
 MODEL_PATH = os.getenv("MODEL_DIR", best["model_path"])
 
+model = None
+spark = None
+assembler = None
+
 # ============================================================
-# FastAPI & Monitoring Setup
+# Lifespan Event (Model Loading)
 # ============================================================
 
-app = FastAPI(title="Predictive Maintenance API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global model, spark, assembler
+
+    if MODEL_TYPE == "MLP":
+        model = MLP(input_size=5)
+        model.load_state_dict(
+            torch.load(Path(MODEL_PATH) / "model.pt", map_location="cpu", weights_only=True)
+        )
+        model.eval()
+
+    elif MODEL_TYPE == "LSTM":
+        model = LSTMModel(input_size=5)
+        model.load_state_dict(
+            torch.load(Path(MODEL_PATH) / "model.pt", map_location="cpu", weights_only=True)
+        )
+        model.eval()
+
+    elif MODEL_TYPE == "RandomForest":
+        from pyspark.ml.classification import RandomForestClassificationModel
+        from pyspark.ml.feature import VectorAssembler
+        from pyspark.sql import SparkSession
+
+        spark = (
+            SparkSession.builder.appName("PredictiveMaintenanceAPI")
+            .config("spark.driver.memory", "512m")
+            .master("local[1]")
+            .getOrCreate()
+        )
+        model = RandomForestClassificationModel.load(MODEL_PATH)
+        assembler = VectorAssembler(
+            inputCols=[
+                "air_temperature",
+                "process_temperature",
+                "rotational_speed",
+                "torque",
+                "tool_wear",
+            ],
+            outputCol="features",
+        )
+
+    else:
+        raise ValueError(f"Unknown model: {MODEL_TYPE}")
+
+    yield
+
+    if spark is not None:
+        spark.stop()
+
+# ============================================================
+# FastAPI Setup
+# ============================================================
+
+app = FastAPI(title="Predictive Maintenance API", lifespan=lifespan)
 Instrumentator().instrument(app).expose(app)
-
-# ============================================================
-# Input Schema
-# ============================================================
-
 
 class MachineData(BaseModel):
     air_temperature: float
@@ -53,61 +102,17 @@ class MachineData(BaseModel):
     torque: float
     tool_wear: float
 
-
-# ============================================================
-# Load Model
-# ============================================================
-
-if MODEL_TYPE == "MLP":
-    model = MLP(input_size=5)
-    model.load_state_dict(
-        torch.load(Path(MODEL_PATH) / "model.pt", map_location="cpu", weights_only=True)
-    )
-    model.eval()
-
-elif MODEL_TYPE == "LSTM":
-    # Fixed argument from input_dim to input_size
-    model = LSTMModel(input_size=5)
-    model.load_state_dict(
-        torch.load(Path(MODEL_PATH) / "model.pt", map_location="cpu", weights_only=True)
-    )
-    model.eval()
-
-elif MODEL_TYPE == "RandomForest":
-    spark = (
-        SparkSession.builder.appName("PredictiveMaintenanceAPI")
-        .master("local[1]")
-        .getOrCreate()
-    )
-    model = RandomForestClassificationModel.load(MODEL_PATH)
-    assembler = VectorAssembler(
-        inputCols=[
-            "air_temperature",
-            "process_temperature",
-            "rotational_speed",
-            "torque",
-            "tool_wear",
-        ],
-        outputCol="features",
-    )
-
-else:
-    raise ValueError(f"Unknown model: {MODEL_TYPE}")
-
 # ============================================================
 # Endpoints
 # ============================================================
-
 
 @app.get("/health")
 def health():
     return {"status": "healthy"}
 
-
 @app.get("/")
 def home():
     return {"status": "running", "model": MODEL_TYPE, "accuracy": best["accuracy"]}
-
 
 @app.post("/predict")
 def predict(data: MachineData):
@@ -152,3 +157,12 @@ def predict(data: MachineData):
         "model": MODEL_TYPE,
         "accuracy": best["accuracy"],
     }
+
+# ============================================================
+# Entry Point
+# ============================================================
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8080))
+    uvicorn.run("src.inference.serve:app", host="0.0.0.0", port=port, reload=False)

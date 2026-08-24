@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
         - name: airflow
-          image: apache/airflow:3.0.2
+          image: custom-airflow-spark:latest
+          imagePullPolicy: Never
           command: ["airflow", "standalone"]
           envFrom:
             - configMapRef:

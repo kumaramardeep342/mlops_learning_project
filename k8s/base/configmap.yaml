@@ -32,5 +32,5 @@ data:
       tracking_uri: http://mlflow-service.ml-training.svc.cluster.local:5000
       experiment_name: predictive_maintenance
     output:
-      model_dir: /app/checkpoints/best_model
+      checkpoints_dir: /app/checkpoints
       metrics_dir: /app/checkpoints/model_metrics

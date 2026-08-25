@@ -35,10 +35,10 @@ minikube status # check status
 minikube start --driver=docker
 
 # Apply all deployment files
-kubectl apply -f k8s/base/
+kubectl apply -f k8s/base/ -n ml-training
 
 # full pipleline , not recomended due to high memory usage and system capacity below is recommened
-kubectl apply -f k8s/services/
+kubectl apply -f k8s/services/ -n ml-training
 
 # during training phase
 # Turn OFF monitoring
@@ -52,8 +52,8 @@ kubectl scale deployment airflow mlflow kafka zookeeper --replicas=0
 # Turn ON monitoring & serving
 kubectl scale deployment prometheus grafana --replicas=1
 
-# run training pipeline
-kubectl apply -f k8s/pipeline/
+# run training pipeline 
+kubectl apply -f k8s/pipeline/ -n ml-training
 
 # Check status of your Pods and Services
 kubectl get pods
@@ -75,6 +75,6 @@ minikube service grafana-service --url
 | :--- | :--- | :--- | :--- |
 | **MLflow** | `http://localhost:5000` | `kubectl port-forward svc/mlflow-service 5000:5000` | None |
 | **Airflow** | `http://localhost:8080` | `kubectl port-forward svc/airflow-service 8080:8080` | None *(Standalone mode auto-logs in)* |
-| **Grafana** | `http://localhost:3000` | `kubectl port-forward svc/grafana-service 3000:3000` | **User:** `admin` / **Password:** `admin` |
+| **Grafana** | `http://localhost:3000` | `kubectl port-forward svc/grafana-service 3000:3000` | **User:** `admin` / **Password:** `adminpassword` |
 | **Prometheus** | `http://localhost:9090` | `kubectl port-forward svc/prometheus-service 9090:9090` | None |
 | **Kafka** | `localhost:9092` | `kubectl port-forward svc/kafka-service 9092:9092` | Internal Broker Port |

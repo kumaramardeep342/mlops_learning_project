@@ -1,16 +1,14 @@
-# placeholder
 import pytest
 from fastapi.testclient import TestClient
 from src.inference.serve import app
 
-client = TestClient(app)
-
 
 def test_health_endpoint():
     """Test if the /health endpoint returns HTTP 200 OK."""
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "healthy"}
+    with TestClient(app) as client:
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json() == {"status": "healthy"}
 
 
 def test_predict_endpoint_valid_input():
@@ -22,7 +20,8 @@ def test_predict_endpoint_valid_input():
         "torque": 40.0,
         "tool_wear": 10,
     }
-    response = client.post("/predict", json=payload)
-    assert response.status_code == 200
-    data = response.json()
-    assert "prediction" in data
+    with TestClient(app) as client:
+        response = client.post("/predict", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert "prediction" in data

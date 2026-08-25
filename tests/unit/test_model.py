@@ -94,7 +94,7 @@ def spark_session():
     spark.stop()
 
 
-def test_random_forest_initialization():
+def test_random_forest_initialization(spark_session):
     """Test if PySpark RandomForestClassifier initializes with parameters."""
     rf = get_random_forest(num_trees=10, max_depth=3)
     assert rf.getNumTrees() == 10, "Random Forest tree count mismatch"

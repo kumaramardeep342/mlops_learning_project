@@ -38,22 +38,22 @@ jobs:
       - name: Wait for Deployments to become Available
         run: |
           echo "Waiting for Airflow..."
-          kubectl rollout status deployment/airflow -n ml-training --timeout=180s
+          kubectl rollout status deployment/airflow -n ml-training --timeout=360s
 
           echo "Waiting for MLflow..."
-          kubectl rollout status deployment/mlflow -n ml-training --timeout=180s
+          kubectl rollout status deployment/mlflow -n ml-training --timeout=240s
 
           echo "Waiting for Zookeeper..."
-          kubectl rollout status deployment/zookeeper -n ml-training --timeout=180s
+          kubectl rollout status deployment/zookeeper -n ml-training --timeout=240s
 
           echo "Waiting for Kafka..."
-          kubectl rollout status deployment/kafka -n ml-training --timeout=180s
+          kubectl rollout status deployment/kafka -n ml-training --timeout=240s
 
           echo "Waiting for Prometheus..."
-          kubectl rollout status deployment/prometheus -n ml-training --timeout=180s
+          kubectl rollout status deployment/prometheus -n ml-training --timeout=240s
 
           echo "Waiting for Grafana..."
-          kubectl rollout status deployment/grafana -n ml-training --timeout=180s
+          kubectl rollout status deployment/grafana -n ml-training --timeout=240s
 
       - name: Verify Pod Status and Services
         if: always()
